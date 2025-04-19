@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}Symbol Not Found - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-search fa-5x text-muted mb-4"></i>
+            <h1 class="mb-3">Symbol Not Found</h1>
+            <p class="lead">We couldn't find any information for the symbol "{{ symbol }}".</p>
+
+            <div class="alert alert-info mt-3 mx-auto" style="max-width: 600px;">
+                <h5><i class="fas fa-info-circle me-2"></i>Tips for Indian Stocks</h5>
+                <p>For Indian stocks, try using the NSE or BSE suffix:</p>
+                <ul class="text-start">
+                    <li>For NSE listed stocks: <strong>{{ symbol }}.NS</strong> (e.g., RELIANCE.NS)</li>
+                    <li>For BSE listed stocks: <strong>{{ symbol }}.BO</strong> (e.g., RELIANCE.BO)</li>
+                </ul>
+                <p class="mb-0">Our system will now automatically try these formats for you!</p>
+            </div>
+
+            <div class="mt-4">
+                <a href="{{ url_for('stocks.stock_details', symbol=symbol~'.NS') }}" class="btn btn-success me-2">
+                    <i class="fas fa-search me-1"></i>Try {{ symbol }}.NS
+                </a>
+                <a href="{{ url_for('stocks.stock_details', symbol=symbol~'.BO') }}" class="btn btn-info me-2">
+                    <i class="fas fa-search me-1"></i>Try {{ symbol }}.BO
+                </a>
+                <a href="{{ url_for('stocks.dashboard') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Search for a Symbol</h4>
+                </div>
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="search-input" class="form-control form-control-lg" placeholder="Search for stocks or mutual funds...">
+                        <button class="btn btn-primary" type="button" id="search-button">Search</button>
+                    </div>
+                    <div id="search-results" class="mt-2" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Popular Symbols</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h5>Large Cap Stocks</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='RELIANCE.NS') }}">RELIANCE.NS - Reliance Industries Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='TCS.NS') }}">TCS.NS - Tata Consultancy Services Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='HDFCBANK.NS') }}">HDFCBANK.NS - HDFC Bank Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='INFY.NS') }}">INFY.NS - Infosys Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='HINDUNILVR.NS') }}">HINDUNILVR.NS - Hindustan Unilever Ltd.</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Mid Cap Stocks</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='GODREJCP.NS') }}">GODREJCP.NS - Godrej Consumer Products Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='HAVELLS.NS') }}">HAVELLS.NS - Havells India Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='BERGEPAINT.NS') }}">BERGEPAINT.NS - Berger Paints India Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='MPHASIS.NS') }}">MPHASIS.NS - Mphasis Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='TATAPOWER.NS') }}">TATAPOWER.NS - Tata Power Co. Ltd.</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Small Cap Stocks</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='IRCTC.NS') }}">IRCTC.NS - Indian Railway Catering and Tourism Corporation Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='LALPATHLAB.NS') }}">LALPATHLAB.NS - Dr. Lal PathLabs Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='CAMS.NS') }}">CAMS.NS - Computer Age Management Services Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='CDSL.NS') }}">CDSL.NS - Central Depository Services (India) Ltd.</a>
+                                </li>
+                                <li class="list-group-item">
+                                    <a href="{{ url_for('stocks.stock_details', symbol='SUNTV.NS') }}">SUNTV.NS - Sun TV Network Ltd.</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const searchResults = document.getElementById('search-results');
+
+        function performSearch() {
+            const query = searchInput.value.trim();
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            // Fetch search results
+            fetch(`/stocks/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        searchResults.innerHTML = '<div class="alert alert-info">No results found</div>';
+                    } else {
+                        let resultsHtml = '<div class="list-group">';
+                        data.forEach(result => {
+                            let url = result.type === 'Stock'
+                                ? `/stocks/details/${result.symbol}`
+                                : `/stocks/mutual-fund/${result.symbol}`;
+
+                            resultsHtml += `
+                                <a href="${url}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>${result.symbol}</strong> - ${result.name}
+                                            <div class="small text-muted">${result.type}</div>
+                                        </div>
+                                        <span class="badge ${result.type === 'Stock' ? 'bg-primary' : 'bg-success'}">${result.type === 'Stock' ? result.cap : result.category}</span>
+                                    </div>
+                                </a>
+                            `;
+                        });
+                        resultsHtml += '</div>';
+                        searchResults.innerHTML = resultsHtml;
+                    }
+                    searchResults.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error searching:', error);
+                    searchResults.innerHTML = '<div class="alert alert-danger">Error performing search</div>';
+                    searchResults.style.display = 'block';
+                });
+        }
+
+        searchButton.addEventListener('click', performSearch);
+        searchInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+    });
+</script>
+{% endblock %}

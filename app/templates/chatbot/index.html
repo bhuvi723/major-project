@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+
+{% block title %}Financial Chatbot - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3"><i class="fas fa-robot me-2 text-primary"></i>Financial Advisor Chatbot</h1>
+            <p class="lead">Ask questions about stocks, mutual funds, financial planning, and investment strategies.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Chat</h4>
+                    <button id="clear-chat" class="btn btn-sm btn-light"><i class="fas fa-trash-alt me-1"></i>Clear Chat</button>
+                </div>
+                <div class="card-body">
+                    <div id="chat-container" class="mb-3" style="height: 500px; overflow-y: auto; padding: 10px;">
+                        {% if chat_history %}
+                            {% for message in chat_history %}
+                                {% if message.is_user %}
+                                    <div class="d-flex justify-content-end mb-3">
+                                        <div class="message user-message">
+                                            {{ message.content }}
+                                            <div class="message-time">{{ message.timestamp.strftime('%H:%M') }}</div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="d-flex justify-content-start mb-3">
+                                        <div class="message bot-message markdown-content">
+                                            <div class="markdown-content-inner"></div>
+                                            <div class="message-time">{{ message.timestamp.strftime('%H:%M') }}</div>
+                                        </div>
+                                        <script>
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                const content = `{{ message.content|safe }}`;
+                                                document.querySelectorAll('.markdown-content-inner')[{{ loop.index0 }}].innerHTML = marked.parse(content);
+                                            });
+                                        </script>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-robot fa-4x text-muted mb-3"></i>
+                                <h5>Welcome to the Financial Advisor Chatbot!</h5>
+                                <p class="text-muted">Ask me anything about stocks, mutual funds, or financial planning.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <form id="chat-form" class="d-flex">
+                        <input type="text" id="message-input" class="form-control me-2" placeholder="Type your message here..." required>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Suggested Questions</h4>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <button class="list-group-item list-group-item-action suggested-question">What are the best mutual funds for beginners?</button>
+                        <button class="list-group-item list-group-item-action suggested-question">How do I calculate Sharpe ratio?</button>
+                        <button class="list-group-item list-group-item-action suggested-question">What is the difference between large-cap and mid-cap stocks?</button>
+                        <button class="list-group-item list-group-item-action suggested-question">How much should I invest in SIP monthly?</button>
+                        <button class="list-group-item list-group-item-action suggested-question">What is portfolio diversification?</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Chatbot Features</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Stock market advice</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Mutual fund recommendations</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Financial planning guidance</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Investment strategy tips</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Market terminology explanations</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .message {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 15px;
+        margin-bottom: 5px;
+        position: relative;
+    }
+
+    .user-message {
+        background-color: #2563eb;
+        color: white;
+        border-top-right-radius: 5px;
+    }
+
+    .bot-message {
+        background-color: #f1f5f9;
+        color: #334155;
+        border-top-left-radius: 5px;
+    }
+
+    .message-time {
+        font-size: 0.7rem;
+        opacity: 0.7;
+        text-align: right;
+        margin-top: 5px;
+    }
+
+    .suggested-question {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .suggested-question:hover {
+        background-color: #f1f5f9;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const chatContainer = document.getElementById('chat-container');
+        const clearChatButton = document.getElementById('clear-chat');
+        const suggestedQuestions = document.querySelectorAll('.suggested-question');
+
+        // Scroll to bottom of chat
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Add message to chat
+        function addMessage(content, isUser = true) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `d-flex justify-content-${isUser ? 'end' : 'start'} mb-3`;
+
+            const message = document.createElement('div');
+            message.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            if (!isUser) {
+                // For bot messages, we need to render markdown
+                message.classList.add('markdown-content');
+
+                // Create a container for the markdown content
+                const markdownContainer = document.createElement('div');
+                markdownContainer.className = 'markdown-content-inner';
+
+                // Parse markdown to HTML
+                markdownContainer.innerHTML = marked.parse(content);
+
+                // Append the markdown container to the message
+                message.appendChild(markdownContainer);
+            } else {
+                message.innerHTML = content;
+            }
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            const now = new Date();
+            timeDiv.textContent = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+            message.appendChild(timeDiv);
+            messageDiv.appendChild(message);
+            chatContainer.appendChild(messageDiv);
+
+            scrollToBottom();
+        }
+
+        // Add typing indicator
+        function addTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'd-flex justify-content-start mb-3';
+            typingDiv.id = 'typing-indicator';
+
+            const typingMessage = document.createElement('div');
+            typingMessage.className = 'message bot-message';
+            typingMessage.innerHTML = '<div class="typing-dots"><span>.</span><span>.</span><span>.</span></div>';
+
+            typingDiv.appendChild(typingMessage);
+            chatContainer.appendChild(typingDiv);
+
+            scrollToBottom();
+        }
+
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Send message to server
+        function sendMessage(message) {
+            // Add user message to chat
+            addMessage(message);
+
+            // Clear input
+            messageInput.value = '';
+
+            // Show typing indicator
+            addTypingIndicator();
+
+            // Send message to server
+            const formData = new FormData();
+            formData.append('message', message);
+
+            fetch('{{ url_for("chatbot.send") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Remove typing indicator
+                removeTypingIndicator();
+
+                // Add bot response to chat
+                addMessage(data.bot_response, false);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                removeTypingIndicator();
+                addMessage('Sorry, I encountered an error. Please try again later.', false);
+            });
+        }
+
+        // Handle form submission
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const message = messageInput.value.trim();
+            if (message) {
+                sendMessage(message);
+            }
+        });
+
+        // Handle suggested questions
+        suggestedQuestions.forEach(question => {
+            question.addEventListener('click', function() {
+                sendMessage(this.textContent);
+            });
+        });
+
+        // Handle clear chat
+        clearChatButton.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                chatContainer.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-robot fa-4x text-muted mb-3"></i>
+                        <h5>Welcome to the Financial Advisor Chatbot!</h5>
+                        <p class="text-muted">Ask me anything about stocks, mutual funds, or financial planning.</p>
+                    </div>
+                `;
+            }
+        });
+
+        // Initial scroll to bottom
+        scrollToBottom();
+    });
+</script>
+
+<style>
+    .typing-dots {
+        display: flex;
+        align-items: center;
+        height: 20px;
+    }
+
+    .typing-dots span {
+        height: 8px;
+        width: 8px;
+        margin: 0 2px;
+        background-color: #334155;
+        border-radius: 50%;
+        display: inline-block;
+        animation: typing 1.4s infinite ease-in-out both;
+    }
+
+    .typing-dots span:nth-child(1) {
+        animation-delay: 0s;
+    }
+
+    .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+        0%, 80%, 100% { transform: scale(0); opacity: 0; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Markdown styling */
+    .markdown-content h1 {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: #1e40af;
+    }
+
+    .markdown-content h2 {
+        font-size: 1.25rem;
+        font-weight: bold;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: #1e3a8a;
+    }
+
+    .markdown-content ul, .markdown-content ol {
+        padding-left: 1.5rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .markdown-content ul li, .markdown-content ol li {
+        margin-bottom: 0.25rem;
+    }
+
+    .markdown-content p {
+        margin-bottom: 0.5rem;
+    }
+
+    .markdown-content strong {
+        font-weight: bold;
+        color: #1e3a8a;
+    }
+</style>
+{% endblock %}

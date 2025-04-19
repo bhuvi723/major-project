@@ -1,0 +1,333 @@
+/* Custom CSS for FinDash */
+
+/* Variables */
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #10b981;
+    --dark-color: #1e293b;
+    --light-color: #f8fafc;
+    --danger-color: #ef4444;
+    --success-color: #22c55e;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6;
+}
+
+/* General Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f1f5f9;
+    color: #334155;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.slide-in {
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Card Styles */
+.card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-card {
+    border-left: 5px solid var(--primary-color);
+}
+
+.dashboard-card.positive {
+    border-left-color: var(--success-color);
+}
+
+.dashboard-card.negative {
+    border-left-color: var(--danger-color);
+}
+
+.dashboard-card.neutral {
+    border-left-color: var(--info-color);
+}
+
+.dashboard-card .card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.dashboard-card .card-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-top: 10px;
+}
+
+.dashboard-card .card-change {
+    font-size: 0.9rem;
+    margin-top: 5px;
+}
+
+.dashboard-card .card-icon {
+    font-size: 2rem;
+    opacity: 0.8;
+}
+
+/* Table Styles */
+.table {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--dark-color);
+    color: var(--light-color);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+/* Button Styles */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar Styles */
+.sidebar {
+    background-color: var(--dark-color);
+    color: var(--light-color);
+    min-height: calc(100vh - 56px);
+}
+
+.sidebar-link {
+    color: var(--light-color);
+    text-decoration: none;
+    padding: 10px 15px;
+    display: block;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin-bottom: 5px;
+}
+
+.sidebar-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--secondary-color);
+}
+
+.sidebar-link.active {
+    background-color: var(--primary-color);
+    color: var(--light-color);
+}
+
+.sidebar-link i {
+    width: 20px;
+    text-align: center;
+}
+
+/* Form Styles */
+.form-control {
+    border-radius: 8px;
+    padding: 10px 15px;
+    border: 1px solid #e2e8f0;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
+}
+
+.input-group-text {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+/* Chart Styles */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Portfolio Styles */
+.portfolio-card {
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.portfolio-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.portfolio-card .card-header {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+.portfolio-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+}
+
+.portfolio-stat {
+    text-align: center;
+}
+
+.portfolio-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.portfolio-stat-label {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+/* Stock Card Styles */
+.stock-card {
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.stock-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.stock-card .card-header {
+    background-color: var(--dark-color);
+    color: white;
+    font-weight: 600;
+}
+
+.stock-price {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.stock-change {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.stock-change.positive {
+    color: var(--success-color);
+}
+
+.stock-change.negative {
+    color: var(--danger-color);
+}
+
+/* Chatbot Styles */
+.chat-container {
+    height: 500px;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #f8fafc;
+    border-radius: 10px;
+}
+
+.message {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.user-message {
+    background-color: var(--primary-color);
+    color: white;
+    border-top-right-radius: 5px;
+    margin-left: auto;
+}
+
+.bot-message {
+    background-color: #e2e8f0;
+    color: var(--dark-color);
+    border-top-left-radius: 5px;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    text-align: right;
+    margin-top: 5px;
+}
+
+/* SIP Calculator Styles */
+.calculator-form {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.result-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.result-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.result-label {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .sidebar {
+        min-height: auto;
+    }
+    
+    .message {
+        max-width: 85%;
+    }
+}

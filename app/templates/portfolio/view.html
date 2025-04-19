@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ portfolio.name }} - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('portfolio.dashboard') }}">Portfolios</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ portfolio.name }}</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3"><i class="fas fa-chart-pie me-2 text-primary"></i>{{ portfolio.name }}</h1>
+            <p class="lead">{{ portfolio.description }}</p>
+        </div>
+    </div>
+    
+    <!-- Portfolio Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card positive">
+                <div class="card-body">
+                    <h5 class="card-title">Current Value</h5>
+                    <div class="card-value">₹{{ "{:,.2f}".format(portfolio.total_value()) }}</div>
+                    <div class="card-change">
+                        {% if portfolio.return_percentage() > 0 %}
+                        <span class="positive-return"><i class="fas fa-arrow-up me-1"></i>{{ "{:.2f}".format(portfolio.return_percentage()) }}%</span>
+                        {% elif portfolio.return_percentage() < 0 %}
+                        <span class="negative-return"><i class="fas fa-arrow-down me-1"></i>{{ "{:.2f}".format(portfolio.return_percentage()|abs) }}%</span>
+                        {% else %}
+                        <span>0.00%</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card neutral">
+                <div class="card-body">
+                    <h5 class="card-title">Total Investment</h5>
+                    <div class="card-value">₹{{ "{:,.2f}".format(portfolio.total_investment()) }}</div>
+                    <div class="card-change">Invested Amount</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card {% if portfolio.total_return() > 0 %}positive{% elif portfolio.total_return() < 0 %}negative{% else %}neutral{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">Total Return</h5>
+                    <div class="card-value">₹{{ "{:,.2f}".format(portfolio.total_return()) }}</div>
+                    <div class="card-change">
+                        {% if portfolio.return_percentage() > 0 %}
+                        <span class="positive-return"><i class="fas fa-arrow-up me-1"></i>{{ "{:.2f}".format(portfolio.return_percentage()) }}%</span>
+                        {% elif portfolio.return_percentage() < 0 %}
+                        <span class="negative-return"><i class="fas fa-arrow-down me-1"></i>{{ "{:.2f}".format(portfolio.return_percentage()|abs) }}%</span>
+                        {% else %}
+                        <span>0.00%</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card info">
+                <div class="card-body">
+                    <h5 class="card-title">Holdings</h5>
+                    <div class="card-value">{{ holdings|length }}</div>
+                    <div class="card-change">
+                        <a href="{{ url_for('portfolio.add_holding', portfolio_id=portfolio.id) }}" class="btn btn-sm btn-primary mt-2">
+                            <i class="fas fa-plus-circle me-1"></i>Add Holding
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group">
+                <a href="{{ url_for('portfolio.add_holding', portfolio_id=portfolio.id) }}" class="btn btn-success">
+                    <i class="fas fa-plus-circle me-1"></i>Add Holding
+                </a>
+                <a href="{{ url_for('portfolio.optimize', portfolio_id=portfolio.id) }}" class="btn btn-info">
+                    <i class="fas fa-balance-scale me-1"></i>Optimize Portfolio
+                </a>
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editPortfolioModal">
+                    <i class="fas fa-edit me-1"></i>Edit Portfolio
+                </button>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deletePortfolioModal">
+                    <i class="fas fa-trash-alt me-1"></i>Delete Portfolio
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Holdings Table -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Holdings</h4>
+                </div>
+                <div class="card-body">
+                    {% if holdings %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Quantity</th>
+                                    <th>Average Price</th>
+                                    <th>Current Price</th>
+                                    <th>Investment</th>
+                                    <th>Current Value</th>
+                                    <th>Profit/Loss</th>
+                                    <th>P/L %</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holding in holdings %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('stocks.stock_details', symbol=holding.symbol) }}" class="fw-bold text-decoration-none">
+                                            {{ holding.symbol }}
+                                        </a>
+                                    </td>
+                                    <td>{{ holding.quantity }}</td>
+                                    <td>₹{{ "{:,.2f}".format(holding.average_price) }}</td>
+                                    <td>₹{{ "{:,.2f}".format(holding.current_value() / holding.quantity) }}</td>
+                                    <td>₹{{ "{:,.2f}".format(holding.total_investment) }}</td>
+                                    <td>₹{{ "{:,.2f}".format(holding.current_value()) }}</td>
+                                    <td class="{% if holding.profit_loss() > 0 %}positive-return{% elif holding.profit_loss() < 0 %}negative-return{% endif %}">
+                                        ₹{{ "{:,.2f}".format(holding.profit_loss()) }}
+                                    </td>
+                                    <td class="{% if holding.profit_loss_percentage() > 0 %}positive-return{% elif holding.profit_loss_percentage() < 0 %}negative-return{% endif %}">
+                                        {% if holding.profit_loss_percentage() > 0 %}
+                                        <i class="fas fa-arrow-up me-1"></i>
+                                        {% elif holding.profit_loss_percentage() < 0 %}
+                                        <i class="fas fa-arrow-down me-1"></i>
+                                        {% endif %}
+                                        {{ "{:.2f}".format(holding.profit_loss_percentage()) }}%
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('portfolio.sell_holding', portfolio_id=portfolio.id, holding_id=holding.id) }}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-dollar-sign me-1"></i>Sell
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                        <h5>No holdings in this portfolio</h5>
+                        <p class="text-muted">Add your first holding to start tracking your investments.</p>
+                        <a href="{{ url_for('portfolio.add_holding', portfolio_id=portfolio.id) }}" class="btn btn-primary mt-3">
+                            <i class="fas fa-plus-circle me-1"></i>Add Holding
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Portfolio Performance Chart -->
+    {% if holdings %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Portfolio Performance</h4>
+                </div>
+                <div class="card-body">
+                    <div id="performance-chart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Asset Allocation -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Asset Allocation</h4>
+                </div>
+                <div class="card-body">
+                    <div id="allocation-chart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Sector Allocation</h4>
+                </div>
+                <div class="card-body">
+                    <div id="sector-chart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Recent Transactions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0">Recent Transactions</h4>
+                </div>
+                <div class="card-body">
+                    {% if transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in transactions %}
+                                <tr>
+                                    <td>{{ transaction.transaction_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('stocks.stock_details', symbol=transaction.symbol) }}" class="fw-bold text-decoration-none">
+                                            {{ transaction.symbol }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if transaction.transaction_type == 'buy' %}
+                                        <span class="badge bg-success">Buy</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Sell</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.quantity }}</td>
+                                    <td>₹{{ "{:,.2f}".format(transaction.price) }}</td>
+                                    <td>₹{{ "{:,.2f}".format(transaction.total_amount) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-exchange-alt fa-4x text-muted mb-3"></i>
+                        <h5>No transactions yet</h5>
+                        <p class="text-muted">Transactions will appear here when you buy or sell holdings.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Portfolio Modal -->
+<div class="modal fade" id="editPortfolioModal" tabindex="-1" aria-labelledby="editPortfolioModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editPortfolioModalLabel">Edit Portfolio</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-portfolio-form" action="#" method="POST">
+                    <div class="mb-3">
+                        <label for="portfolio-name" class="form-label">Portfolio Name</label>
+                        <input type="text" class="form-control" id="portfolio-name" name="name" value="{{ portfolio.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="portfolio-description" class="form-label">Description</label>
+                        <textarea class="form-control" id="portfolio-description" name="description" rows="3">{{ portfolio.description }}</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="edit-portfolio-form" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Portfolio Modal -->
+<div class="modal fade" id="deletePortfolioModal" tabindex="-1" aria-labelledby="deletePortfolioModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deletePortfolioModalLabel">Delete Portfolio</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this portfolio? This action cannot be undone.</p>
+                <p><strong>Portfolio:</strong> {{ portfolio.name }}</p>
+                <p><strong>Holdings:</strong> {{ holdings|length }}</p>
+                <p><strong>Total Value:</strong> ₹{{ "{:,.2f}".format(portfolio.total_value()) }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="#" method="POST">
+                    <button type="submit" class="btn btn-danger">Delete Portfolio</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if holdings %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Parse performance data
+        const performanceData = {{ performance_data|safe }};
+        
+        // Create performance chart
+        const symbols = Object.keys(performanceData);
+        const traces = [];
+        
+        symbols.forEach(symbol => {
+            traces.push({
+                x: Array.from({ length: performanceData[symbol].length }, (_, i) => i),
+                y: performanceData[symbol],
+                type: 'scatter',
+                mode: 'lines',
+                name: symbol
+            });
+        });
+        
+        const performanceLayout = {
+            title: 'Historical Performance',
+            xaxis: {
+                title: 'Time'
+            },
+            yaxis: {
+                title: 'Price'
+            },
+            legend: {
+                x: 0.1,
+                y: 1,
+                orientation: 'h'
+            },
+            margin: {
+                l: 50,
+                r: 50,
+                b: 50,
+                t: 50,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('performance-chart', traces, performanceLayout, {responsive: true});
+        
+        // Create allocation chart
+        const holdingSymbols = [{% for holding in holdings %}'{{ holding.symbol }}',{% endfor %}];
+        const holdingValues = [{% for holding in holdings %}{{ holding.current_value() }},{% endfor %}];
+        
+        const allocationData = [{
+            values: holdingValues,
+            labels: holdingSymbols,
+            type: 'pie',
+            textinfo: 'label+percent',
+            insidetextorientation: 'radial',
+            marker: {
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+            }
+        }];
+        
+        const allocationLayout = {
+            title: 'Asset Allocation',
+            showlegend: false,
+            margin: {
+                l: 20,
+                r: 20,
+                b: 20,
+                t: 50,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('allocation-chart', allocationData, allocationLayout, {responsive: true});
+        
+        // Create sector chart (placeholder - would need actual sector data)
+        const sectorData = [{
+            values: [30, 20, 15, 10, 10, 15],
+            labels: ['Technology', 'Finance', 'Healthcare', 'Consumer', 'Energy', 'Other'],
+            type: 'pie',
+            textinfo: 'label+percent',
+            insidetextorientation: 'radial',
+            marker: {
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+            }
+        }];
+        
+        const sectorLayout = {
+            title: 'Sector Allocation',
+            showlegend: false,
+            margin: {
+                l: 20,
+                r: 20,
+                b: 20,
+                t: 50,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('sector-chart', sectorData, sectorLayout, {responsive: true});
+    });
+</script>
+{% endif %}
+{% endblock %}

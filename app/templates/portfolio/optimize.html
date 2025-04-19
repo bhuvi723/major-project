@@ -1,0 +1,401 @@
+{% extends 'base.html' %}
+
+{% block title %}Optimize Portfolio - {{ portfolio.name }} - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('portfolio.dashboard') }}">Portfolios</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('portfolio.view_portfolio', portfolio_id=portfolio.id) }}">{{ portfolio.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Optimize Portfolio</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3"><i class="fas fa-balance-scale me-2 text-primary"></i>Optimize Portfolio</h1>
+            <p class="lead">Optimize your portfolio for better risk-adjusted returns.</p>
+        </div>
+    </div>
+    
+    <!-- Risk Tolerance Selection -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Risk Tolerance</h4>
+                </div>
+                <div class="card-body">
+                    <p>Select your risk tolerance level to optimize your portfolio accordingly:</p>
+                    <div class="d-flex justify-content-center">
+                        <div class="btn-group" role="group" aria-label="Risk Tolerance">
+                            <a href="{{ url_for('portfolio.optimize', portfolio_id=portfolio.id, risk_tolerance='low') }}" class="btn btn-lg {% if risk_tolerance == 'low' %}btn-success{% else %}btn-outline-success{% endif %}">
+                                <i class="fas fa-shield-alt me-1"></i>Low Risk
+                            </a>
+                            <a href="{{ url_for('portfolio.optimize', portfolio_id=portfolio.id, risk_tolerance='moderate') }}" class="btn btn-lg {% if risk_tolerance == 'moderate' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                <i class="fas fa-balance-scale me-1"></i>Moderate Risk
+                            </a>
+                            <a href="{{ url_for('portfolio.optimize', portfolio_id=portfolio.id, risk_tolerance='high') }}" class="btn btn-lg {% if risk_tolerance == 'high' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                                <i class="fas fa-fire me-1"></i>High Risk
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current vs Optimized Portfolio -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Current vs Optimized Portfolio</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="text-center mb-3">Current Allocation</h5>
+                            <div id="current-allocation-chart" style="height: 300px;"></div>
+                            <div class="table-responsive mt-3">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Symbol</th>
+                                            <th>Weight</th>
+                                            <th>Value (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for holding in holdings %}
+                                        <tr>
+                                            <td>{{ holding.symbol }}</td>
+                                            <td>{{ "{:.2f}".format(holding.current_value() / portfolio.total_value() * 100) }}%</td>
+                                            <td>₹{{ "{:,.2f}".format(holding.current_value()) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-center mb-3">Optimized Allocation</h5>
+                            <div id="optimized-allocation-chart" style="height: 300px;"></div>
+                            <div class="table-responsive mt-3">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Symbol</th>
+                                            <th>Weight</th>
+                                            <th>Value (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for i in range(symbols|length) %}
+                                        <tr>
+                                            <td>{{ symbols[i] }}</td>
+                                            <td>{{ "{:.2f}".format(optimization_result.weights[i] * 100) }}%</td>
+                                            <td>₹{{ "{:,.2f}".format(optimization_result.weights[i] * portfolio.total_value()) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Portfolio Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Portfolio Metrics</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card dashboard-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Expected Return</h5>
+                                    <div class="card-value">{{ "{:.2f}".format(optimization_result.expected_return * 100) }}%</div>
+                                    <div class="card-change">Annualized</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card dashboard-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Volatility</h5>
+                                    <div class="card-value">{{ "{:.2f}".format(optimization_result.volatility * 100) }}%</div>
+                                    <div class="card-change">Annualized</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card dashboard-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Sharpe Ratio</h5>
+                                    <div class="card-value">{{ "{:.2f}".format(optimization_result.sharpe_ratio) }}</div>
+                                    <div class="card-change">Risk-adjusted return</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card dashboard-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Risk Tolerance</h5>
+                                    <div class="card-value">{{ risk_tolerance.capitalize() }}</div>
+                                    <div class="card-change">Selected level</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Minimum Variance Portfolio</h4>
+                </div>
+                <div class="card-body">
+                    <p>The minimum variance portfolio represents the allocation with the lowest possible risk:</p>
+                    <div id="min-var-chart" style="height: 300px;"></div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card dashboard-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Expected Return</h5>
+                                    <div class="card-value">{{ "{:.2f}".format(min_var_result.expected_return * 100) }}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card dashboard-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Volatility</h5>
+                                    <div class="card-value">{{ "{:.2f}".format(min_var_result.volatility * 100) }}%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Covariance Matrix -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0">Covariance Matrix</h4>
+                </div>
+                <div class="card-body">
+                    <p>The covariance matrix shows how the returns of different assets move together:</p>
+                    <div id="covariance-heatmap" style="height: 500px;"></div>
+                    <div class="table-responsive mt-3">
+                        {{ cov_matrix|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Implementation Plan -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Implementation Plan</h4>
+                </div>
+                <div class="card-body">
+                    <p>To achieve the optimized portfolio allocation, you need to make the following trades:</p>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Current Weight</th>
+                                    <th>Target Weight</th>
+                                    <th>Current Value (₹)</th>
+                                    <th>Target Value (₹)</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(symbols|length) %}
+                                {% set current_weight = holdings[i].current_value() / portfolio.total_value() if i < holdings|length else 0 %}
+                                {% set target_weight = optimization_result.weights[i] %}
+                                {% set current_value = holdings[i].current_value() if i < holdings|length else 0 %}
+                                {% set target_value = target_weight * portfolio.total_value() %}
+                                {% set difference = target_value - current_value %}
+                                <tr>
+                                    <td>{{ symbols[i] }}</td>
+                                    <td>{{ "{:.2f}".format(current_weight * 100) }}%</td>
+                                    <td>{{ "{:.2f}".format(target_weight * 100) }}%</td>
+                                    <td>₹{{ "{:,.2f}".format(current_value) }}</td>
+                                    <td>₹{{ "{:,.2f}".format(target_value) }}</td>
+                                    <td>
+                                        {% if difference > 0 %}
+                                        <span class="badge bg-success">Buy ₹{{ "{:,.2f}".format(difference) }}</span>
+                                        {% elif difference < 0 %}
+                                        <span class="badge bg-warning">Sell ₹{{ "{:,.2f}".format(-difference) }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Change</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> This is a theoretical optimization. Consider transaction costs, taxes, and market conditions before implementing these changes.
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                        <a href="{{ url_for('portfolio.view_portfolio', portfolio_id=portfolio.id) }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Portfolio
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Current Allocation Chart
+        const currentSymbols = [{% for holding in holdings %}'{{ holding.symbol }}',{% endfor %}];
+        const currentValues = [{% for holding in holdings %}{{ holding.current_value() }},{% endfor %}];
+        
+        const currentData = [{
+            values: currentValues,
+            labels: currentSymbols,
+            type: 'pie',
+            textinfo: 'label+percent',
+            insidetextorientation: 'radial',
+            marker: {
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+            }
+        }];
+        
+        const currentLayout = {
+            showlegend: false,
+            margin: {
+                l: 20,
+                r: 20,
+                b: 20,
+                t: 20,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('current-allocation-chart', currentData, currentLayout, {responsive: true});
+        
+        // Optimized Allocation Chart
+        const optimizedSymbols = [{% for symbol in symbols %}'{{ symbol }}',{% endfor %}];
+        const optimizedWeights = [{% for weight in optimization_result.weights %}{{ weight }},{% endfor %}];
+        const optimizedValues = optimizedWeights.map(weight => weight * {{ portfolio.total_value() }});
+        
+        const optimizedData = [{
+            values: optimizedValues,
+            labels: optimizedSymbols,
+            type: 'pie',
+            textinfo: 'label+percent',
+            insidetextorientation: 'radial',
+            marker: {
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+            }
+        }];
+        
+        const optimizedLayout = {
+            showlegend: false,
+            margin: {
+                l: 20,
+                r: 20,
+                b: 20,
+                t: 20,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('optimized-allocation-chart', optimizedData, optimizedLayout, {responsive: true});
+        
+        // Minimum Variance Portfolio Chart
+        const minVarWeights = [{% for weight in min_var_result.weights %}{{ weight }},{% endfor %}];
+        
+        const minVarData = [{
+            values: minVarWeights,
+            labels: optimizedSymbols,
+            type: 'pie',
+            textinfo: 'label+percent',
+            insidetextorientation: 'radial',
+            marker: {
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+            }
+        }];
+        
+        const minVarLayout = {
+            showlegend: false,
+            margin: {
+                l: 20,
+                r: 20,
+                b: 20,
+                t: 20,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('min-var-chart', minVarData, minVarLayout, {responsive: true});
+        
+        // Covariance Heatmap
+        // This is a placeholder - in a real app, you would parse the covariance matrix
+        const covMatrix = Array(optimizedSymbols.length).fill().map(() => Array(optimizedSymbols.length).fill(0));
+        for (let i = 0; i < optimizedSymbols.length; i++) {
+            for (let j = 0; j < optimizedSymbols.length; j++) {
+                if (i === j) {
+                    covMatrix[i][j] = Math.random() * 0.1;
+                } else {
+                    covMatrix[i][j] = Math.random() * 0.05 - 0.025;
+                }
+            }
+        }
+        
+        const heatmapData = [{
+            z: covMatrix,
+            x: optimizedSymbols,
+            y: optimizedSymbols,
+            type: 'heatmap',
+            colorscale: 'Viridis',
+            showscale: true
+        }];
+        
+        const heatmapLayout = {
+            title: 'Covariance Matrix Heatmap',
+            xaxis: {
+                title: 'Stocks'
+            },
+            yaxis: {
+                title: 'Stocks'
+            },
+            margin: {
+                l: 100,
+                r: 50,
+                b: 100,
+                t: 50,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('covariance-heatmap', heatmapData, heatmapLayout, {responsive: true});
+    });
+</script>
+{% endblock %}

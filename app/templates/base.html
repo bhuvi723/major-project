@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Financial Dashboard{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #10b981;
+            --dark-color: #1e293b;
+            --light-color: #f8fafc;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --info-color: #3b82f6;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f1f5f9;
+            color: #334155;
+        }
+
+        .navbar {
+            background-color: var(--dark-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--light-color);
+        }
+
+        .nav-link {
+            color: var(--light-color);
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--secondary-color);
+        }
+
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+            border-color: var(--warning-color);
+        }
+
+        .btn-info {
+            background-color: var(--info-color);
+            border-color: var(--info-color);
+        }
+
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table thead th {
+            background-color: var(--dark-color);
+            color: var(--light-color);
+        }
+
+        .positive-return {
+            color: var(--success-color);
+        }
+
+        .negative-return {
+            color: var(--danger-color);
+        }
+
+        .sidebar {
+            background-color: var(--dark-color);
+            color: var(--light-color);
+            min-height: calc(100vh - 56px);
+        }
+
+        .sidebar-link {
+            color: var(--light-color);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .sidebar-link.active {
+            background-color: var(--primary-color);
+            color: var(--light-color);
+        }
+
+        .dashboard-card {
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .dashboard-card.positive {
+            border-left-color: var(--success-color);
+        }
+
+        .dashboard-card.negative {
+            border-left-color: var(--danger-color);
+        }
+
+        .dashboard-card.neutral {
+            border-left-color: var(--info-color);
+        }
+
+        .dashboard-card .card-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        .dashboard-card .card-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+
+        .dashboard-card .card-change {
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .dashboard-card .card-icon {
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+
+        /* Animation classes */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <i class="fas fa-chart-line me-2"></i>FinDash
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('portfolio.dashboard') }}">
+                            <i class="fas fa-chart-pie me-1"></i> Portfolio
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('stocks.dashboard') }}">
+                            <i class="fas fa-exchange-alt me-1"></i> Stocks
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="mutualFundsDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-pie me-1"></i> Mutual Funds
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('mutual_funds.index') }}">Browse Funds</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('mf_analysis.index') }}">Analysis & Prediction</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('sip_calculator.index') }}">
+                            <i class="fas fa-calculator me-1"></i> SIP Calculator
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('chatbot.index') }}">
+                            <i class="fas fa-robot me-1"></i> Chatbot
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#">Profile</a></li>
+                            <li><a class="dropdown-item" href="#">Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <div class="row">
+            {% if current_user.is_authenticated %}
+            <div class="col-md-2 p-0 sidebar">
+                <div class="p-3">
+                    <h5 class="mb-3">Dashboard</h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="sidebar-link {% if request.path == url_for('portfolio.dashboard') %}active{% endif %}" href="{{ url_for('portfolio.dashboard') }}">
+                                <i class="fas fa-chart-pie me-2"></i> Portfolio Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="sidebar-link {% if request.path == url_for('stocks.dashboard') %}active{% endif %}" href="{{ url_for('stocks.dashboard') }}">
+                                <i class="fas fa-exchange-alt me-2"></i> Stocks
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="sidebar-link {% if request.path == url_for('mutual_funds.index') %}active{% endif %}" href="{{ url_for('mutual_funds.index') }}">
+                                <i class="fas fa-chart-pie me-2"></i> Browse Mutual Funds
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="sidebar-link {% if '/mf-analysis' in request.path %}active{% endif %}" href="{{ url_for('mf_analysis.index') }}">
+                                <i class="fas fa-chart-line me-2"></i> MF Analysis & Prediction
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="sidebar-link {% if request.path == url_for('sip_calculator.index') %}active{% endif %}" href="{{ url_for('sip_calculator.index') }}">
+                                <i class="fas fa-calculator me-2"></i> SIP Calculator
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="sidebar-link {% if request.path == url_for('chatbot.index') %}active{% endif %}" href="{{ url_for('chatbot.index') }}">
+                                <i class="fas fa-robot me-2"></i> Chatbot
+                            </a>
+                        </li>
+                    </ul>
+
+                    <h5 class="mt-4 mb-3">Portfolio</h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="sidebar-link" href="{{ url_for('portfolio.create_portfolio') }}">
+                                <i class="fas fa-plus-circle me-2"></i> Create Portfolio
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-10 p-4">
+            {% else %}
+            <div class="col-12 p-4">
+            {% endif %}
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Page Content -->
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>FinDash</h5>
+                    <p>A comprehensive financial dashboard for tracking investments, analyzing stocks, and planning your financial future.</p>
+                </div>
+                <div class="col-md-3">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('main.index') }}" class="text-light">Home</a></li>
+                        {% if current_user.is_authenticated %}
+                        <li><a href="{{ url_for('portfolio.dashboard') }}" class="text-light">Portfolio</a></li>
+                        <li><a href="{{ url_for('stocks.dashboard') }}" class="text-light">Stocks</a></li>
+                        <li><a href="{{ url_for('mutual_funds.index') }}" class="text-light">Mutual Funds</a></li>
+                        <li><a href="{{ url_for('mf_analysis.index') }}" class="text-light">MF Analysis</a></li>
+                        {% else %}
+                        <li><a href="{{ url_for('auth.login') }}" class="text-light">Login</a></li>
+                        <li><a href="{{ url_for('auth.register') }}" class="text-light">Register</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5>Contact</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-envelope me-2"></i> support@findash.com</li>
+                        <li><i class="fas fa-phone me-2"></i> +91 1234567890</li>
+                        <li><i class="fas fa-map-marker-alt me-2"></i> Mumbai, India</li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4">
+            <div class="text-center">
+                <p>&copy; 2023 FinDash. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

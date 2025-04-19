@@ -1,0 +1,1468 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ symbol }} - Stock Details - FinDash{% endblock %}
+
+{% block extra_js %}
+<!-- Add additional Plotly.js configuration -->
+<script>
+    // Configure Plotly for better performance
+    window.PLOTLYENV = window.PLOTLYENV || {};
+    window.PLOTLYENV.BASE_URL = 'https://cdn.plot.ly';
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('stocks.dashboard') }}">Stocks & Funds</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ symbol }}</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3">
+                <i class="fas fa-chart-line me-2 text-primary"></i>
+                {{ stock_info.get('longName', symbol) }}
+                <span class="badge bg-primary">{{ symbol }}</span>
+            </h1>
+            <p class="lead">{{ stock_info.get('longBusinessSummary', 'Stock information') }}</p>
+        </div>
+    </div>
+
+    <!-- Stock Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card positive">
+                <div class="card-body">
+                    <h5 class="card-title">Current Price</h5>
+                    <div class="card-value">₹{{ "{:,.2f}".format(stock_info.get('currentPrice', price_data[-1] if price_data else 0)) }}</div>
+                    <div class="card-change">
+                        {% set change_percent = stock_info.get('regularMarketChangePercent', 0) %}
+                        {% if change_percent > 0 %}
+                        <span class="positive-return"><i class="fas fa-arrow-up me-1"></i>{{ "{:.2f}".format(change_percent) }}%</span>
+                        {% elif change_percent < 0 %}
+                        <span class="negative-return"><i class="fas fa-arrow-down me-1"></i>{{ "{:.2f}".format(change_percent|abs) }}%</span>
+                        {% else %}
+                        <span>0.00%</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card neutral">
+                <div class="card-body">
+                    <h5 class="card-title">Market Cap</h5>
+                    <div class="card-value">₹{{ "{:,.2f}".format(stock_info.get('marketCap', 0) / 10000000) }} Cr</div>
+                    <div class="card-change">
+                        {% for s in similar_stocks %}
+                            {% if s.symbol == symbol %}
+                                {{ s.get('cap', 'N/A') }}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card info">
+                <div class="card-body">
+                    <h5 class="card-title">52 Week Range</h5>
+                    <div class="card-value">
+                        ₹{{ "{:,.2f}".format(stock_info.get('fiftyTwoWeekLow', 0)) }} -
+                        ₹{{ "{:,.2f}".format(stock_info.get('fiftyTwoWeekHigh', 0)) }}
+                    </div>
+                    <div class="card-change">52 Week Range</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card info">
+                <div class="card-body">
+                    <h5 class="card-title">Volume</h5>
+                    <div class="card-value">{{ "{:,.0f}".format(stock_info.get('volume', 0)) }}</div>
+                    <div class="card-change">
+                        Avg: {{ "{:,.0f}".format(stock_info.get('averageVolume', 0)) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyStockModal">
+                    <i class="fas fa-shopping-cart me-1"></i>Buy
+                </button>
+                <a href="#fundamentals" class="btn btn-info">
+                    <i class="fas fa-chart-bar me-1"></i>Fundamentals
+                </a>
+                <a href="#technicals" class="btn btn-warning">
+                    <i class="fas fa-chart-line me-1"></i>Technicals
+                </a>
+                <a href="#news" class="btn btn-secondary">
+                    <i class="fas fa-newspaper me-1"></i>News
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Type Selector -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Chart Analysis</h4>
+                        <div class="d-flex">
+                            <div class="btn-group me-2" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-light active" id="chart-type-line">Line</button>
+                                <button type="button" class="btn btn-sm btn-outline-light" id="chart-type-candle">Candlestick</button>
+                                <button type="button" class="btn btn-sm btn-outline-light" id="chart-type-ohlc">OHLC</button>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-light" id="toggle-ma">Moving Averages</button>
+                                <button type="button" class="btn btn-sm btn-outline-light" id="toggle-bollinger">Bollinger Bands</button>
+                                <button type="button" class="btn btn-sm btn-outline-light" id="toggle-volume">Volume</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body" style="background-color: #f8fafc; padding: 20px;">
+                    <div class="btn-group mb-3" role="group" aria-label="Time Period">
+                        <button type="button" class="btn btn-outline-primary active" data-period="1m">1M</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="3m">3M</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="6m">6M</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="1y">1Y</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="5y">5Y</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="max">Max</button>
+                    </div>
+                    <div id="main-chart" style="height: 550px; border: 1px solid #cbd5e0; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); background-color: #ffffff; position: relative;">
+                        <div id="main-chart-loading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: rgba(255,255,255,0.8); z-index: 10;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fundamentals and Technicals -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm" id="fundamentals">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Fundamentals</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>P/E Ratio</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('trailingPE', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>EPS (TTM)</th>
+                                    <td>₹{{ "{:.2f}".format(stock_info.get('trailingEps', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Dividend Yield</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('dividendYield', 0) * 100) }}%</td>
+                                </tr>
+                                <tr>
+                                    <th>Book Value</th>
+                                    <td>₹{{ "{:.2f}".format(stock_info.get('bookValue', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>P/B Ratio</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('priceToBook', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>ROE</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('returnOnEquity', 0) * 100) }}%</td>
+                                </tr>
+                                <tr>
+                                    <th>Profit Margin</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('profitMargins', 0) * 100) }}%</td>
+                                </tr>
+                                <tr>
+                                    <th>Debt to Equity</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('debtToEquity', 0)) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm" id="technicals">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Technicals</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr>
+                                    <th>50-Day MA</th>
+                                    <td>₹{{ "{:.2f}".format(stock_info.get('fiftyDayAverage', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>200-Day MA</th>
+                                    <td>₹{{ "{:.2f}".format(stock_info.get('twoHundredDayAverage', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>RSI (14)</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('rsi14', 50)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Beta</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('beta', 1)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>ATR</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('averageTrueRange', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Volatility (Monthly)</th>
+                                    <td>{{ "{:.2f}".format(stock_info.get('monthlyVolatility', 0) * 100) }}%</td>
+                                </tr>
+                                <tr>
+                                    <th>Support Level</th>
+                                    <td>₹{{ "{:.2f}".format(price_data[-1] * 0.95 if price_data else 0) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Resistance Level</th>
+                                    <td>₹{{ "{:.2f}".format(price_data[-1] * 1.05 if price_data else 0) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Indicators -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">RSI & MACD</h4>
+                </div>
+                <div class="card-body" style="background-color: #f8fafc; padding: 20px;">
+                    <div id="rsi-chart" style="height: 220px; border: 1px solid #cbd5e0; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); background-color: #ffffff; margin-bottom: 20px; position: relative;">
+                        <div id="rsi-chart-loading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: rgba(255,255,255,0.8); z-index: 10;">
+                            <div class="spinner-border text-info" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="macd-chart" style="height: 220px; border: 1px solid #cbd5e0; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); background-color: #ffffff; position: relative;">
+                        <div id="macd-chart-loading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: rgba(255,255,255,0.8); z-index: 10;">
+                            <div class="spinner-border text-info" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Volume & Money Flow</h4>
+                </div>
+                <div class="card-body" style="background-color: #f8fafc; padding: 20px;">
+                    <div id="volume-chart" style="height: 220px; border: 1px solid #cbd5e0; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); background-color: #ffffff; margin-bottom: 20px; position: relative;">
+                        <div id="volume-chart-loading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: rgba(255,255,255,0.8); z-index: 10;">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="mfi-chart" style="height: 220px; border: 1px solid #cbd5e0; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); background-color: #ffffff; position: relative;">
+                        <div id="mfi-chart-loading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: rgba(255,255,255,0.8); z-index: 10;">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Similar Stocks -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0">Similar Stocks</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for stock in similar_stocks %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <a href="{{ url_for('stocks.stock_details', symbol=stock.symbol) }}" class="text-decoration-none">
+                                            {{ stock.symbol }}
+                                        </a>
+                                    </h5>
+                                    <h6 class="card-subtitle mb-2 text-muted">{{ stock.name }}</h6>
+                                    <p class="card-text">
+                                        <strong>Sector:</strong> {{ stock.sector }}<br>
+                                        <strong>Market Cap:</strong> {{ stock.cap }}
+                                    </p>
+                                    <a href="{{ url_for('stocks.stock_details', symbol=stock.symbol) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-chart-line me-1"></i>View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- News Section -->
+    <div class="row mb-4" id="news">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Latest News</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for i in range(3) %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <img src="https://via.placeholder.com/300x150?text=News+Image" class="card-img-top" alt="News Image">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ stock_info.get('longName', symbol) }} Announces Q{{ (loop.index % 4) + 1 }} Results</h5>
+                                    <p class="card-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod, nisl eget aliquam ultricies, nunc nisl aliquet nunc.</p>
+                                    <p class="card-text"><small class="text-muted">{{ (loop.index * 2) }} days ago</small></p>
+                                    <a href="#" class="btn btn-sm btn-primary">Read More</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Buy Stock Modal -->
+<div class="modal fade" id="buyStockModal" tabindex="-1" aria-labelledby="buyStockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="buyStockModalLabel">Buy {{ symbol }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="buy-stock-form">
+                    <div class="mb-3">
+                        <label for="portfolio-select" class="form-label">Select Portfolio</label>
+                        <select class="form-select" id="portfolio-select" required>
+                            <option value="" selected disabled>Choose a portfolio</option>
+                            <option value="1">My Portfolio</option>
+                            <option value="2">Retirement Portfolio</option>
+                            <option value="3">Aggressive Growth</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity</label>
+                        <input type="number" class="form-control" id="quantity" min="0.01" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price (₹)</label>
+                        <input type="number" class="form-control" id="price" value="{{ price_data[-1] if price_data else 0 }}" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="total-amount" class="form-label">Total Amount (₹)</label>
+                        <input type="text" class="form-control" id="total-amount" readonly>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="buy-button">Buy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Parse data from server
+        const openData = {{ open_data|safe }};
+        const highData = {{ high_data|safe }};
+        const lowData = {{ low_data|safe }};
+        const closeData = {{ close_data|safe }};
+        const volumeData = {{ volume_data|safe }};
+        const dates = {{ dates|safe }};
+
+        // Check if data is available
+        if (!dates || dates.length === 0) {
+            console.error('No data available for charts');
+            document.getElementById('main-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
+            document.getElementById('rsi-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
+            document.getElementById('macd-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
+            document.getElementById('volume-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
+            document.getElementById('mfi-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
+            return;
+        }
+
+        console.log('Data loaded successfully:', {
+            dates: dates.length,
+            open: openData.length,
+            high: highData.length,
+            low: lowData.length,
+            close: closeData.length,
+            volume: volumeData.length
+        });
+
+        // Parse technical indicator data
+        const ma50Data = {{ ma50_data|safe }};
+        const ma200Data = {{ ma200_data|safe }};
+        const upperBandData = {{ upper_band_data|safe }};
+        const lowerBandData = {{ lower_band_data|safe }};
+        const rsiData = {{ rsi_data|safe }};
+        const macdData = {{ macd_data|safe }};
+        const signalData = {{ signal_data|safe }};
+        const histogramData = {{ histogram_data|safe }};
+        const mfiData = {{ mfi_data|safe }};
+
+        // Create line chart trace
+        const lineTrace = {
+            x: dates,
+            y: closeData,
+            type: 'scatter',
+            mode: 'lines',
+            name: '{{ symbol }} Price',
+            line: {
+                color: '#3b82f6',
+                width: 2
+            }
+        };
+
+        // Create candlestick chart trace
+        const candlestickTrace = {
+            x: dates,
+            open: openData,
+            high: highData,
+            low: lowData,
+            close: closeData,
+            type: 'candlestick',
+            name: '{{ symbol }} OHLC',
+            increasing: {line: {color: '#10b981'}},
+            decreasing: {line: {color: '#ef4444'}},
+            visible: false
+        };
+
+        // Create OHLC chart trace
+        const ohlcTrace = {
+            x: dates,
+            open: openData,
+            high: highData,
+            low: lowData,
+            close: closeData,
+            type: 'ohlc',
+            name: '{{ symbol }} OHLC',
+            increasing: {line: {color: '#10b981'}},
+            decreasing: {line: {color: '#ef4444'}},
+            visible: false
+        };
+
+        // Create moving average traces
+        const ma50Trace = {
+            x: dates,
+            y: ma50Data,
+            type: 'scatter',
+            mode: 'lines',
+            name: '50-Day MA',
+            line: {
+                color: '#10b981',
+                width: 1.5
+            },
+            visible: 'legendonly'
+        };
+
+        const ma200Trace = {
+            x: dates,
+            y: ma200Data,
+            type: 'scatter',
+            mode: 'lines',
+            name: '200-Day MA',
+            line: {
+                color: '#ef4444',
+                width: 1.5
+            },
+            visible: 'legendonly'
+        };
+
+        // Create Bollinger Bands traces
+        const upperBandTrace = {
+            x: dates,
+            y: upperBandData,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Upper Bollinger Band',
+            line: {
+                color: '#f59e0b',
+                width: 1,
+                dash: 'dash'
+            },
+            visible: 'legendonly'
+        };
+
+        const lowerBandTrace = {
+            x: dates,
+            y: lowerBandData,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Lower Bollinger Band',
+            line: {
+                color: '#f59e0b',
+                width: 1,
+                dash: 'dash'
+            },
+            visible: 'legendonly'
+        };
+
+        // Create volume trace
+        const volumeTrace = {
+            x: dates,
+            y: volumeData,
+            type: 'bar',
+            name: 'Volume',
+            marker: {
+                color: volumeData.map((vol, i) => {
+                    return closeData[i] >= openData[i] ? '#10b981' : '#ef4444';
+                }),
+                opacity: 0.7
+            },
+            yaxis: 'y2',
+            visible: false
+        };
+
+        // Main chart layout
+        const mainChartLayout = {
+            title: {
+                text: '{{ symbol }} Price History',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 24,
+                    color: '#2d3748'
+                }
+            },
+            xaxis: {
+                title: {
+                    text: 'Date',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                rangeslider: {
+                    visible: true,
+                    thickness: 0.05
+                },
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            yaxis: {
+                title: {
+                    text: 'Price (₹)',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                domain: [0.2, 1],
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                },
+                tickformat: ',.2f'
+            },
+            yaxis2: {
+                title: {
+                    text: 'Volume',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                domain: [0, 0.15],
+                showticklabels: false,
+                gridcolor: '#e2e8f0'
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2,
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                },
+                bgcolor: 'rgba(255,255,255,0.5)',
+                bordercolor: '#e2e8f0',
+                borderwidth: 1
+            },
+            margin: {
+                l: 60,
+                r: 50,
+                b: 80,
+                t: 60,
+                pad: 4
+            },
+            plot_bgcolor: 'rgba(240, 242, 245, 0.8)',
+            paper_bgcolor: '#ffffff',
+            grid: {
+                rows: 1,
+                columns: 1,
+                pattern: 'independent'
+            },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: '#2d3748',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: 'white'
+                }
+            }
+        };
+
+        // Plot the main chart with all traces
+        Plotly.newPlot('main-chart',
+            [lineTrace, candlestickTrace, ohlcTrace, ma50Trace, ma200Trace, upperBandTrace, lowerBandTrace, volumeTrace],
+            mainChartLayout,
+            {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'eraseshape'],
+                modeBarButtonsToRemove: ['lasso2d']
+            }).then(function() {
+                // Hide loading indicator
+                document.getElementById('main-chart-loading').style.display = 'none';
+            });
+
+        // Chart type toggle buttons
+        document.getElementById('chart-type-line').addEventListener('click', function() {
+            this.classList.add('active');
+            document.getElementById('chart-type-candle').classList.remove('active');
+            document.getElementById('chart-type-ohlc').classList.remove('active');
+
+            Plotly.restyle('main-chart', {visible: true}, [0]);
+            Plotly.restyle('main-chart', {visible: false}, [1]);
+            Plotly.restyle('main-chart', {visible: false}, [2]);
+        });
+
+        document.getElementById('chart-type-candle').addEventListener('click', function() {
+            this.classList.add('active');
+            document.getElementById('chart-type-line').classList.remove('active');
+            document.getElementById('chart-type-ohlc').classList.remove('active');
+
+            Plotly.restyle('main-chart', {visible: false}, [0]);
+            Plotly.restyle('main-chart', {visible: true}, [1]);
+            Plotly.restyle('main-chart', {visible: false}, [2]);
+        });
+
+        document.getElementById('chart-type-ohlc').addEventListener('click', function() {
+            this.classList.add('active');
+            document.getElementById('chart-type-line').classList.remove('active');
+            document.getElementById('chart-type-candle').classList.remove('active');
+
+            Plotly.restyle('main-chart', {visible: false}, [0]);
+            Plotly.restyle('main-chart', {visible: false}, [1]);
+            Plotly.restyle('main-chart', {visible: true}, [2]);
+        });
+
+        // Volume toggle button
+        document.getElementById('toggle-volume').addEventListener('click', function() {
+            const volumeVisible = Plotly.d3.select('#main-chart').selectAll('.traces').filter(function(d) {
+                return d.index === 7;
+            }).style('opacity') === '1';
+
+            Plotly.restyle('main-chart', {
+                visible: volumeVisible ? false : true
+            }, [7]);
+        });
+
+        // Create volume chart for the separate volume panel
+        const volumeChartTrace = {
+            x: dates,
+            y: volumeData,
+            type: 'bar',
+            name: 'Volume',
+            marker: {
+                color: volumeData.map((vol, i) => {
+                    return closeData[i] >= openData[i] ? '#10b981' : '#ef4444';
+                }),
+                opacity: 0.7
+            }
+        };
+
+        const volumeLayout = {
+            title: {
+                text: 'Trading Volume',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 18,
+                    color: '#2d3748'
+                }
+            },
+            xaxis: {
+                title: {
+                    text: 'Date',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            yaxis: {
+                title: {
+                    text: 'Volume',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            margin: {
+                l: 60,
+                r: 50,
+                b: 50,
+                t: 50,
+                pad: 4
+            },
+            plot_bgcolor: 'rgba(240, 242, 245, 0.8)',
+            paper_bgcolor: '#ffffff',
+            grid: {
+                rows: 1,
+                columns: 1,
+                pattern: 'independent'
+            },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: '#2d3748',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: 'white'
+                }
+            }
+        };
+
+        Plotly.newPlot('volume-chart', [volumeChartTrace], volumeLayout, {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d']
+        }).then(function() {
+            // Hide loading indicator
+            document.getElementById('volume-chart-loading').style.display = 'none';
+        });
+
+        // Create RSI chart
+        const rsiTrace = {
+            x: dates,
+            y: rsiData,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'RSI (14)',
+            line: {
+                color: '#8b5cf6',
+                width: 2
+            }
+        };
+
+        // Add overbought and oversold lines
+        const overboughtLine = {
+            x: [dates[0], dates[dates.length - 1]],
+            y: [70, 70],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Overbought (70)',
+            line: {
+                color: '#ef4444',
+                width: 1,
+                dash: 'dash'
+            }
+        };
+
+        const oversoldLine = {
+            x: [dates[0], dates[dates.length - 1]],
+            y: [30, 30],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Oversold (30)',
+            line: {
+                color: '#10b981',
+                width: 1,
+                dash: 'dash'
+            }
+        };
+
+        const midLine = {
+            x: [dates[0], dates[dates.length - 1]],
+            y: [50, 50],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Neutral (50)',
+            line: {
+                color: '#6b7280',
+                width: 1,
+                dash: 'dot'
+            }
+        };
+
+        const rsiLayout = {
+            title: {
+                text: 'Relative Strength Index (RSI)',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 18,
+                    color: '#2d3748'
+                }
+            },
+            xaxis: {
+                title: {
+                    text: 'Date',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            yaxis: {
+                title: {
+                    text: 'RSI',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                range: [0, 100],
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2,
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                },
+                bgcolor: 'rgba(255,255,255,0.5)',
+                bordercolor: '#e2e8f0',
+                borderwidth: 1
+            },
+            margin: {
+                l: 60,
+                r: 50,
+                b: 80,
+                t: 50,
+                pad: 4
+            },
+            plot_bgcolor: 'rgba(240, 242, 245, 0.8)',
+            paper_bgcolor: '#ffffff',
+            grid: {
+                rows: 1,
+                columns: 1,
+                pattern: 'independent'
+            },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: '#2d3748',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: 'white'
+                }
+            }
+        };
+
+        Plotly.newPlot('rsi-chart', [rsiTrace, overboughtLine, oversoldLine, midLine], rsiLayout, {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d']
+        }).then(function() {
+            // Hide loading indicator
+            document.getElementById('rsi-chart-loading').style.display = 'none';
+        });
+
+        // Create MACD chart
+        const macdLineTrace = {
+            x: dates,
+            y: macdData,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'MACD Line',
+            line: {
+                color: '#3b82f6',
+                width: 2
+            }
+        };
+
+        const signalLineTrace = {
+            x: dates,
+            y: signalData,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Signal Line',
+            line: {
+                color: '#f59e0b',
+                width: 1.5
+            }
+        };
+
+        const histogramTrace = {
+            x: dates,
+            y: histogramData,
+            type: 'bar',
+            name: 'Histogram',
+            marker: {
+                color: histogramData.map(val => val >= 0 ? '#10b981' : '#ef4444'),
+                opacity: 0.7
+            }
+        };
+
+        const macdLayout = {
+            title: {
+                text: 'MACD (12,26,9)',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 18,
+                    color: '#2d3748'
+                }
+            },
+            xaxis: {
+                title: {
+                    text: 'Date',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            yaxis: {
+                title: {
+                    text: 'MACD',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2,
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                },
+                bgcolor: 'rgba(255,255,255,0.5)',
+                bordercolor: '#e2e8f0',
+                borderwidth: 1
+            },
+            margin: {
+                l: 60,
+                r: 50,
+                b: 80,
+                t: 50,
+                pad: 4
+            },
+            plot_bgcolor: 'rgba(240, 242, 245, 0.8)',
+            paper_bgcolor: '#ffffff',
+            grid: {
+                rows: 1,
+                columns: 1,
+                pattern: 'independent'
+            },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: '#2d3748',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: 'white'
+                }
+            }
+        };
+
+        Plotly.newPlot('macd-chart', [macdLineTrace, signalLineTrace, histogramTrace], macdLayout, {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d']
+        }).then(function() {
+            // Hide loading indicator
+            document.getElementById('macd-chart-loading').style.display = 'none';
+        });
+
+        // Create MFI chart
+        const mfiTrace = {
+            x: dates,
+            y: mfiData,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'MFI (14)',
+            line: {
+                color: '#ec4899',
+                width: 2
+            }
+        };
+
+        // Add overbought and oversold lines for MFI
+        const mfiOverboughtLine = {
+            x: [dates[0], dates[dates.length - 1]],
+            y: [80, 80],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Overbought (80)',
+            line: {
+                color: '#ef4444',
+                width: 1,
+                dash: 'dash'
+            }
+        };
+
+        const mfiOversoldLine = {
+            x: [dates[0], dates[dates.length - 1]],
+            y: [20, 20],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Oversold (20)',
+            line: {
+                color: '#10b981',
+                width: 1,
+                dash: 'dash'
+            }
+        };
+
+        const mfiMidLine = {
+            x: [dates[0], dates[dates.length - 1]],
+            y: [50, 50],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Neutral (50)',
+            line: {
+                color: '#6b7280',
+                width: 1,
+                dash: 'dot'
+            }
+        };
+
+        const mfiLayout = {
+            title: {
+                text: 'Money Flow Index (MFI)',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 18,
+                    color: '#2d3748'
+                }
+            },
+            xaxis: {
+                title: {
+                    text: 'Date',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            yaxis: {
+                title: {
+                    text: 'MFI',
+                    font: {
+                        family: 'Arial, sans-serif',
+                        size: 14,
+                        color: '#4a5568'
+                    }
+                },
+                range: [0, 100],
+                gridcolor: '#e2e8f0',
+                tickfont: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                }
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2,
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: '#4a5568'
+                },
+                bgcolor: 'rgba(255,255,255,0.5)',
+                bordercolor: '#e2e8f0',
+                borderwidth: 1
+            },
+            margin: {
+                l: 60,
+                r: 50,
+                b: 80,
+                t: 50,
+                pad: 4
+            },
+            plot_bgcolor: 'rgba(240, 242, 245, 0.8)',
+            paper_bgcolor: '#ffffff',
+            grid: {
+                rows: 1,
+                columns: 1,
+                pattern: 'independent'
+            },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: '#2d3748',
+                font: {
+                    family: 'Arial, sans-serif',
+                    size: 12,
+                    color: 'white'
+                }
+            }
+        };
+
+        Plotly.newPlot('mfi-chart', [mfiTrace, mfiOverboughtLine, mfiOversoldLine, mfiMidLine], mfiLayout, {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d']
+        }).then(function() {
+            // Hide loading indicator
+            document.getElementById('mfi-chart-loading').style.display = 'none';
+        });
+
+        // Buy stock form functionality
+        const quantityInput = document.getElementById('quantity');
+        const priceInput = document.getElementById('price');
+        const totalAmountInput = document.getElementById('total-amount');
+        const buyButton = document.getElementById('buy-button');
+
+        function calculateTotal() {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            const total = quantity * price;
+
+            totalAmountInput.value = '₹' + total.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        quantityInput.addEventListener('input', calculateTotal);
+
+        buyButton.addEventListener('click', function() {
+            const portfolioSelect = document.getElementById('portfolio-select');
+            const quantity = parseFloat(quantityInput.value) || 0;
+
+            if (!portfolioSelect.value || quantity <= 0) {
+                alert('Please select a portfolio and enter a valid quantity.');
+                return;
+            }
+
+            alert('Stock purchase functionality will be implemented here.');
+            $('#buyStockModal').modal('hide');
+        });
+
+        // Time period buttons
+        const periodButtons = document.querySelectorAll('[data-period]');
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+
+                // Update chart based on selected period
+                const period = this.getAttribute('data-period');
+
+                // Filter data based on selected period
+                let filteredDates = [];
+                let filteredPrices = [];
+                let filteredMA50 = [];
+                let filteredMA200 = [];
+                let filteredUpperBand = [];
+                let filteredLowerBand = [];
+                let filteredVolume = [];
+                let filteredRSI = [];
+
+                // Calculate cutoff date
+                const now = new Date();
+                let cutoffDate;
+
+                switch(period) {
+                    case '1m':
+                        cutoffDate = new Date(now.setMonth(now.getMonth() - 1));
+                        break;
+                    case '3m':
+                        cutoffDate = new Date(now.setMonth(now.getMonth() - 3));
+                        break;
+                    case '6m':
+                        cutoffDate = new Date(now.setMonth(now.getMonth() - 6));
+                        break;
+                    case '1y':
+                        cutoffDate = new Date(now.setFullYear(now.getFullYear() - 1));
+                        break;
+                    case '5y':
+                        cutoffDate = new Date(now.setFullYear(now.getFullYear() - 5));
+                        break;
+                    case 'max':
+                        cutoffDate = new Date(0); // Beginning of time
+                        break;
+                    default:
+                        cutoffDate = new Date(now.setMonth(now.getMonth() - 1));
+                }
+
+                // Filter all data arrays
+                let filteredDates = [];
+                let filteredOpen = [];
+                let filteredHigh = [];
+                let filteredLow = [];
+                let filteredClose = [];
+                let filteredMA50 = [];
+                let filteredMA200 = [];
+                let filteredUpperBand = [];
+                let filteredLowerBand = [];
+                let filteredVolume = [];
+                let filteredRSI = [];
+                let filteredMACD = [];
+                let filteredSignal = [];
+                let filteredHistogram = [];
+                let filteredMFI = [];
+
+                // Filter data in a single loop
+                for (let i = 0; i < dates.length; i++) {
+                    const currentDate = new Date(dates[i]);
+                    if (currentDate >= cutoffDate) {
+                        filteredDates.push(dates[i]);
+                        filteredOpen.push(openData[i]);
+                        filteredHigh.push(highData[i]);
+                        filteredLow.push(lowData[i]);
+                        filteredClose.push(closeData[i]);
+                        if (ma50Data.length > i) filteredMA50.push(ma50Data[i]);
+                        if (ma200Data.length > i) filteredMA200.push(ma200Data[i]);
+                        if (upperBandData.length > i) filteredUpperBand.push(upperBandData[i]);
+                        if (lowerBandData.length > i) filteredLowerBand.push(lowerBandData[i]);
+                        if (volumeData.length > i) filteredVolume.push(volumeData[i]);
+                        if (rsiData.length > i) filteredRSI.push(rsiData[i]);
+                        if (macdData.length > i) filteredMACD.push(macdData[i]);
+                        if (signalData.length > i) filteredSignal.push(signalData[i]);
+                        if (histogramData.length > i) filteredHistogram.push(histogramData[i]);
+                        if (mfiData.length > i) filteredMFI.push(mfiData[i]);
+                    }
+                }
+
+                // Update main chart
+                // Line chart
+                Plotly.update('main-chart', {
+                    x: [filteredDates],
+                    y: [filteredClose]
+                }, {}, [0]);
+
+                // Candlestick chart
+                Plotly.update('main-chart', {
+                    x: [filteredDates],
+                    open: [filteredOpen],
+                    high: [filteredHigh],
+                    low: [filteredLow],
+                    close: [filteredClose]
+                }, {}, [1]);
+
+                // OHLC chart
+                Plotly.update('main-chart', {
+                    x: [filteredDates],
+                    open: [filteredOpen],
+                    high: [filteredHigh],
+                    low: [filteredLow],
+                    close: [filteredClose]
+                }, {}, [2]);
+
+                // Technical indicators
+                Plotly.update('main-chart', {
+                    x: [filteredDates, filteredDates, filteredDates, filteredDates, filteredDates],
+                    y: [filteredMA50, filteredMA200, filteredUpperBand, filteredLowerBand, filteredVolume]
+                }, {}, [3, 4, 5, 6, 7]);
+
+                // Update volume chart
+                Plotly.update('volume-chart', {
+                    x: [filteredDates],
+                    y: [filteredVolume],
+                    marker: {
+                        color: filteredVolume.map((vol, i) => {
+                            return filteredClose[i] >= filteredOpen[i] ? '#10b981' : '#ef4444';
+                        })
+                    }
+                }, {}, [0]);
+
+                // Update RSI chart
+                const overboughtLine = {
+                    x: [filteredDates[0], filteredDates[filteredDates.length - 1]],
+                    y: [70, 70]
+                };
+
+                const oversoldLine = {
+                    x: [filteredDates[0], filteredDates[filteredDates.length - 1]],
+                    y: [30, 30]
+                };
+
+                const midLine = {
+                    x: [filteredDates[0], filteredDates[filteredDates.length - 1]],
+                    y: [50, 50]
+                };
+
+                Plotly.update('rsi-chart', {
+                    x: [filteredDates, overboughtLine.x, oversoldLine.x, midLine.x],
+                    y: [filteredRSI, overboughtLine.y, oversoldLine.y, midLine.y]
+                }, {}, [0, 1, 2, 3]);
+
+                // Update MACD chart
+                Plotly.update('macd-chart', {
+                    x: [filteredDates, filteredDates, filteredDates],
+                    y: [filteredMACD, filteredSignal, filteredHistogram],
+                    marker: {
+                        color: filteredHistogram.map(val => val >= 0 ? '#10b981' : '#ef4444')
+                    }
+                }, {}, [0, 1, 2]);
+
+                // Update MFI chart
+                const mfiOverboughtLine = {
+                    x: [filteredDates[0], filteredDates[filteredDates.length - 1]],
+                    y: [80, 80]
+                };
+
+                const mfiOversoldLine = {
+                    x: [filteredDates[0], filteredDates[filteredDates.length - 1]],
+                    y: [20, 20]
+                };
+
+                const mfiMidLine = {
+                    x: [filteredDates[0], filteredDates[filteredDates.length - 1]],
+                    y: [50, 50]
+                };
+
+                Plotly.update('mfi-chart', {
+                    x: [filteredDates, mfiOverboughtLine.x, mfiOversoldLine.x, mfiMidLine.x],
+                    y: [filteredMFI, mfiOverboughtLine.y, mfiOversoldLine.y, mfiMidLine.y]
+                }, {}, [0, 1, 2, 3]);
+            });
+        });
+
+        // Toggle technical indicators
+        document.getElementById('toggle-ma').addEventListener('click', function() {
+            // Toggle both moving averages
+            Plotly.restyle('main-chart', {
+                visible: ma50Trace.visible === true ? 'legendonly' : true
+            }, [3]);
+
+            Plotly.restyle('main-chart', {
+                visible: ma200Trace.visible === true ? 'legendonly' : true
+            }, [4]);
+        });
+
+        document.getElementById('toggle-bollinger').addEventListener('click', function() {
+            // Toggle both Bollinger Bands
+            Plotly.restyle('main-chart', {
+                visible: upperBandTrace.visible === true ? 'legendonly' : true
+            }, [5]);
+
+            Plotly.restyle('main-chart', {
+                visible: lowerBandTrace.visible === true ? 'legendonly' : true
+            }, [6]);
+        });
+
+        document.getElementById('toggle-volume').addEventListener('click', function() {
+            // Toggle volume
+            Plotly.restyle('main-chart', {
+                visible: volumeTrace.visible === true ? false : true
+            }, [7]);
+        });
+
+        // Fix for the contains selector
+        jQuery.expr[':'].contains = function(a, i, m) {
+            return jQuery(a).text().toUpperCase().indexOf(m[3].toUpperCase()) >= 0;
+        };
+    });
+</script>
+{% endblock %}

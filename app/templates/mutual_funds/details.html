@@ -1,0 +1,526 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ fund.scheme_name }} - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('mutual_funds.index') }}">Mutual Funds</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ fund.scheme_name }}</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3">{{ fund.scheme_name }}</h1>
+            <p class="lead text-muted">{{ fund.fund_house }}</p>
+        </div>
+    </div>
+
+    <!-- Fund Overview -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Fund Overview</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Scheme Code:</strong> {{ fund.scheme_code }}</p>
+                            <p><strong>Fund House:</strong> {{ fund.fund_house }}</p>
+                            <p><strong>Scheme Type:</strong> {{ fund.scheme_type }}</p>
+                            <p><strong>Fund Size Category:</strong> <span class="badge {{ 'bg-primary' if fund.fund_size_category == 'large-cap' else 'bg-info' if fund.fund_size_category == 'mid-cap' else 'bg-warning text-dark' if fund.fund_size_category == 'small-cap' else 'bg-secondary' }}">{{ fund.fund_size_category|capitalize }}</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Scheme Category:</strong> {{ fund.scheme_category }}</p>
+                            <p><strong>Latest NAV:</strong> ₹{{ fund.scheme_nav }}</p>
+                            <p><strong>NAV Date:</strong> {{ fund.scheme_date }}</p>
+                            <p><strong>Assets Under Management:</strong> ₹{{ fund.aum }} Crores</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NAV Chart -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">NAV History</h4>
+                </div>
+                <div class="card-body">
+                    <div id="nav-chart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Returns -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Returns</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <td>1 Month</td>
+                                {% if fund.one_month_return is not none %}
+                                <td class="{{ 'text-success' if fund.one_month_return > 0 else 'text-danger' }}">
+                                    {{ "%.2f"|format(fund.one_month_return) }}%
+                                    {% if fund.one_month_return > 0 %}
+                                    <i class="fas fa-arrow-up"></i>
+                                    {% elif fund.one_month_return < 0 %}
+                                    <i class="fas fa-arrow-down"></i>
+                                    {% endif %}
+                                </td>
+                                {% else %}
+                                <td>N/A</td>
+                                {% endif %}
+                            </tr>
+                            <tr>
+                                <td>3 Months</td>
+                                {% if fund.three_month_return is not none %}
+                                <td class="{{ 'text-success' if fund.three_month_return > 0 else 'text-danger' }}">
+                                    {{ "%.2f"|format(fund.three_month_return) }}%
+                                    {% if fund.three_month_return > 0 %}
+                                    <i class="fas fa-arrow-up"></i>
+                                    {% elif fund.three_month_return < 0 %}
+                                    <i class="fas fa-arrow-down"></i>
+                                    {% endif %}
+                                </td>
+                                {% else %}
+                                <td>N/A</td>
+                                {% endif %}
+                            </tr>
+                            <tr>
+                                <td>6 Months</td>
+                                {% if fund.six_month_return is not none %}
+                                <td class="{{ 'text-success' if fund.six_month_return > 0 else 'text-danger' }}">
+                                    {{ "%.2f"|format(fund.six_month_return) }}%
+                                    {% if fund.six_month_return > 0 %}
+                                    <i class="fas fa-arrow-up"></i>
+                                    {% elif fund.six_month_return < 0 %}
+                                    <i class="fas fa-arrow-down"></i>
+                                    {% endif %}
+                                </td>
+                                {% else %}
+                                <td>N/A</td>
+                                {% endif %}
+                            </tr>
+                            <tr>
+                                <td>1 Year</td>
+                                {% if fund.one_year_return is not none %}
+                                <td class="{{ 'text-success' if fund.one_year_return > 0 else 'text-danger' }}">
+                                    {{ "%.2f"|format(fund.one_year_return) }}%
+                                    {% if fund.one_year_return > 0 %}
+                                    <i class="fas fa-arrow-up"></i>
+                                    {% elif fund.one_year_return < 0 %}
+                                    <i class="fas fa-arrow-down"></i>
+                                    {% endif %}
+                                </td>
+                                {% else %}
+                                <td>N/A</td>
+                                {% endif %}
+                            </tr>
+                            <tr>
+                                <td>3 Years</td>
+                                {% if fund.three_year_return is not none %}
+                                <td class="{{ 'text-success' if fund.three_year_return > 0 else 'text-danger' }}">
+                                    {{ "%.2f"|format(fund.three_year_return) }}%
+                                    {% if fund.three_year_return > 0 %}
+                                    <i class="fas fa-arrow-up"></i>
+                                    {% elif fund.three_year_return < 0 %}
+                                    <i class="fas fa-arrow-down"></i>
+                                    {% endif %}
+                                </td>
+                                {% else %}
+                                <td>N/A</td>
+                                {% endif %}
+                            </tr>
+                            <tr>
+                                <td>5 Years</td>
+                                {% if fund.five_year_return is not none %}
+                                <td class="{{ 'text-success' if fund.five_year_return > 0 else 'text-danger' }}">
+                                    {{ "%.2f"|format(fund.five_year_return) }}%
+                                    {% if fund.five_year_return > 0 %}
+                                    <i class="fas fa-arrow-up"></i>
+                                    {% elif fund.five_year_return < 0 %}
+                                    <i class="fas fa-arrow-down"></i>
+                                    {% endif %}
+                                </td>
+                                {% else %}
+                                <td>N/A</td>
+                                {% endif %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Risk Metrics -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Risk Metrics</h4>
+                </div>
+                <div class="card-body">
+                    {% if fund.volatility is not none %}
+                    <p><strong>Volatility:</strong> {{ "%.2f"|format(fund.volatility) }}%</p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-{{ 'danger' if fund.volatility > 20 else 'warning' if fund.volatility > 10 else 'success' }}"
+                             role="progressbar"
+                             style="width: {{ min(fund.volatility * 2, 100) }}%"
+                             aria-valuenow="{{ fund.volatility }}"
+                             aria-valuemin="0"
+                             aria-valuemax="50">
+                        </div>
+                    </div>
+                    <p class="text-muted small">
+                        {% if fund.volatility > 20 %}
+                        <i class="fas fa-exclamation-triangle text-danger me-1"></i> High volatility indicates higher risk
+                        {% elif fund.volatility > 10 %}
+                        <i class="fas fa-info-circle text-warning me-1"></i> Moderate volatility indicates balanced risk
+                        {% else %}
+                        <i class="fas fa-check-circle text-success me-1"></i> Low volatility indicates lower risk
+                        {% endif %}
+                    </p>
+                    {% else %}
+                    <p><strong>Volatility:</strong> Not available</p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-secondary"
+                             role="progressbar"
+                             style="width: 0%"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="50">
+                        </div>
+                    </div>
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle text-secondary me-1"></i> Insufficient data to calculate volatility
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Investment Actions -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">Investment Actions</h4>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sipModal">
+                            <i class="fas fa-calendar-alt me-1"></i> Start SIP
+                        </button>
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#buyModal">
+                            <i class="fas fa-money-bill-wave me-1"></i> Buy Fund
+                        </button>
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#sellModal">
+                            <i class="fas fa-exchange-alt me-1"></i> Sell Fund
+                        </button>
+                        <form action="{{ url_for('mutual_funds.add_to_watchlist', scheme_code=fund.scheme_code) }}" method="POST">
+                            <button type="submit" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-star me-1"></i> Add to Watchlist
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fund Performance Comparison -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Fund Performance Comparison</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Compare this fund's performance with benchmark indices and category average.</p>
+                    <div id="comparison-chart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SIP Modal -->
+<div class="modal fade" id="sipModal" tabindex="-1" aria-labelledby="sipModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sipModalLabel">Start SIP for {{ fund.scheme_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="sipAmount" class="form-label">Monthly SIP Amount (₹)</label>
+                        <input type="number" class="form-control" id="sipAmount" min="500" step="500" value="5000">
+                    </div>
+                    <div class="mb-3">
+                        <label for="sipDuration" class="form-label">SIP Duration (Years)</label>
+                        <input type="number" class="form-control" id="sipDuration" min="1" max="30" value="5">
+                    </div>
+                    <div class="mb-3">
+                        <label for="sipDate" class="form-label">SIP Date</label>
+                        <select class="form-select" id="sipDate">
+                            <option value="1">1st of every month</option>
+                            <option value="5">5th of every month</option>
+                            <option value="10">10th of every month</option>
+                            <option value="15">15th of every month</option>
+                            <option value="20">20th of every month</option>
+                            <option value="25">25th of every month</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Start SIP</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Buy Modal -->
+<div class="modal fade" id="buyModal" tabindex="-1" aria-labelledby="buyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="buyModalLabel">Buy {{ fund.scheme_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="buyForm" action="{{ url_for('mutual_funds.buy_mutual_fund', scheme_code=fund.scheme_code) }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Current NAV: ₹{{ fund.scheme_nav }}</label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fund Category: <span class="badge {{ 'bg-primary' if fund.fund_size_category == 'large-cap' else 'bg-info' if fund.fund_size_category == 'mid-cap' else 'bg-warning text-dark' if fund.fund_size_category == 'small-cap' else 'bg-secondary' }}">{{ fund.fund_size_category|capitalize }}</span></label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">AUM: ₹{{ fund.aum }} Crores</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="buyAmount" class="form-label">Investment Amount (₹)</label>
+                        <input type="number" class="form-control" id="buyAmount" name="amount" min="1000" step="100" value="10000">
+                    </div>
+                    <div class="mb-3">
+                        <label for="buyUnits" class="form-label">Or Specify Units</label>
+                        <input type="number" class="form-control" id="buyUnits" name="units" min="0.01" step="0.01" value="0">
+                        <div class="form-text">Leave at 0 to use amount instead</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" form="buyForm" class="btn btn-success">Buy Now</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sell Modal -->
+<div class="modal fade" id="sellModal" tabindex="-1" aria-labelledby="sellModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sellModalLabel">Sell {{ fund.scheme_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sellForm" action="{{ url_for('mutual_funds.sell_mutual_fund', scheme_code=fund.scheme_code) }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Current NAV: ₹{{ fund.scheme_nav }}</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sellUnits" class="form-label">Units to Sell</label>
+                        <input type="number" class="form-control" id="sellUnits" name="units" min="0.01" step="0.01" value="1">
+                        <div class="form-text">Estimated Value: ₹<span id="estimatedValue">{{ (1 * fund.scheme_nav|float)|round(2) }}</span></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" form="sellForm" class="btn btn-danger">Sell Now</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Parse the NAV history data
+        const navHistoryData = {{ nav_history|safe }};
+
+        // Prepare data for the NAV chart
+        const navChartData = navHistoryData.map(item => {
+            return {
+                x: new Date(item.date),
+                y: parseFloat(item.nav)
+            };
+        });
+
+        // Create the NAV chart
+        const navChart = {
+            x: navChartData.map(item => item.x),
+            y: navChartData.map(item => item.y),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'NAV',
+            line: {
+                color: '#2563eb',
+                width: 2
+            }
+        };
+
+        const navLayout = {
+            title: 'NAV History',
+            xaxis: {
+                title: 'Date',
+                showgrid: false
+            },
+            yaxis: {
+                title: 'NAV (₹)',
+                showgrid: true
+            },
+            margin: {
+                l: 50,
+                r: 20,
+                t: 50,
+                b: 50
+            },
+            showlegend: false
+        };
+
+        Plotly.newPlot('nav-chart', [navChart], navLayout);
+
+        // Create a mock comparison chart (for demonstration)
+        const dates = [];
+        const fundValues = [];
+        const benchmarkValues = [];
+        const categoryValues = [];
+
+        // Generate some mock data for the comparison chart
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 1);
+
+        for (let i = 0; i < 12; i++) {
+            const date = new Date(startDate);
+            date.setMonth(date.getMonth() + i);
+            dates.push(date);
+
+            // Mock values
+            const fundValue = 100 * (1 + (Math.random() * 0.2 - 0.05) * i / 12);
+            const benchmarkValue = 100 * (1 + (Math.random() * 0.15) * i / 12);
+            const categoryValue = 100 * (1 + (Math.random() * 0.18 - 0.02) * i / 12);
+
+            fundValues.push(fundValue);
+            benchmarkValues.push(benchmarkValue);
+            categoryValues.push(categoryValue);
+        }
+
+        const comparisonChart = [
+            {
+                x: dates,
+                y: fundValues,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'This Fund',
+                line: {
+                    color: '#2563eb',
+                    width: 3
+                }
+            },
+            {
+                x: dates,
+                y: benchmarkValues,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Benchmark',
+                line: {
+                    color: '#10b981',
+                    width: 2
+                }
+            },
+            {
+                x: dates,
+                y: categoryValues,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Category Average',
+                line: {
+                    color: '#f59e0b',
+                    width: 2,
+                    dash: 'dash'
+                }
+            }
+        ];
+
+        const comparisonLayout = {
+            title: 'Performance Comparison (1 Year)',
+            xaxis: {
+                title: 'Date',
+                showgrid: false
+            },
+            yaxis: {
+                title: 'Value (Base 100)',
+                showgrid: true
+            },
+            margin: {
+                l: 50,
+                r: 20,
+                t: 50,
+                b: 50
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2
+            }
+        };
+
+        Plotly.newPlot('comparison-chart', comparisonChart, comparisonLayout);
+
+        // Buy and Sell calculations
+        const currentNav = parseFloat('{{ fund.scheme_nav }}');
+
+        // Buy calculations
+        const buyAmountInput = document.getElementById('buyAmount');
+        const buyUnitsInput = document.getElementById('buyUnits');
+        const estimatedUnitsSpan = document.getElementById('estimatedUnits');
+
+        if (buyAmountInput && buyUnitsInput && estimatedUnitsSpan) {
+            buyAmountInput.addEventListener('input', function() {
+                const amount = parseFloat(this.value) || 0;
+                if (amount > 0) {
+                    const units = amount / currentNav;
+                    estimatedUnitsSpan.textContent = units.toFixed(2);
+                    buyUnitsInput.value = 0; // Reset units input
+                }
+            });
+
+            buyUnitsInput.addEventListener('input', function() {
+                const units = parseFloat(this.value) || 0;
+                if (units > 0) {
+                    buyAmountInput.value = 0; // Reset amount input
+                }
+            });
+        }
+
+        // Sell calculations
+        const sellUnitsInput = document.getElementById('sellUnits');
+        const estimatedValueSpan = document.getElementById('estimatedValue');
+
+        if (sellUnitsInput && estimatedValueSpan) {
+            sellUnitsInput.addEventListener('input', function() {
+                const units = parseFloat(this.value) || 0;
+                const value = units * currentNav;
+                estimatedValueSpan.textContent = value.toFixed(2);
+            });
+        }
+    });
+</script>
+{% endblock %}

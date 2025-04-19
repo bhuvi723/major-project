@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+
+{% block title %}Mutual Funds - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3"><i class="fas fa-chart-line me-2 text-primary"></i>Mutual Funds</h1>
+            <p class="lead">Explore and analyze mutual funds from across the Indian market.</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="row mb-4">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form action="{{ url_for('mutual_funds.index') }}" method="GET" class="d-flex">
+                        <input type="text" name="query" class="form-control me-2" placeholder="Search for mutual funds..." value="{{ query }}">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mutual Funds List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{{ 'Search Results' if query else 'Popular Mutual Funds' }}</h4>
+                </div>
+                <div class="card-body">
+                    {% if funds %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Scheme Code</th>
+                                    <th>Scheme Name</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fund in funds %}
+                                <tr>
+                                    <td>{{ fund.schemeCode }}</td>
+                                    <td>{{ fund.schemeName }}</td>
+                                    <td>
+                                        <a href="{{ url_for('mutual_funds.view_details', scheme_code=fund.schemeCode) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye me-1"></i> View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                        <h5>No mutual funds found</h5>
+                        <p class="text-muted">Try a different search term or explore popular funds.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Gainers and Losers -->
+    <div class="row mt-4">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Top Gainers</h4>
+                </div>
+                <div class="card-body">
+                    {% if top_gainers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fund Name</th>
+                                    <th>NAV</th>
+                                    <th>1M Return</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fund in top_gainers %}
+                                <tr>
+                                    <td>{{ fund.scheme_name }}</td>
+                                    <td>₹{{ fund.scheme_nav }}</td>
+                                    <td class="text-success">{{ "%.2f"|format(fund.one_month_return) }}% <i class="fas fa-arrow-up"></i></td>
+                                    <td>
+                                        <a href="{{ url_for('mutual_funds.view_details', scheme_code=fund.scheme_code) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center py-3">Loading top gainers...</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Top Losers</h4>
+                </div>
+                <div class="card-body">
+                    {% if top_losers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fund Name</th>
+                                    <th>NAV</th>
+                                    <th>1M Return</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fund in top_losers %}
+                                <tr>
+                                    <td>{{ fund.scheme_name }}</td>
+                                    <td>₹{{ fund.scheme_nav }}</td>
+                                    <td class="text-danger">{{ "%.2f"|format(fund.one_month_return) }}% <i class="fas fa-arrow-down"></i></td>
+                                    <td>
+                                        <a href="{{ url_for('mutual_funds.view_details', scheme_code=fund.scheme_code) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center py-3">Loading top losers...</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Performing Funds by Category -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h3 class="mb-3">Top Performing Funds by Category</h3>
+        </div>
+    </div>
+
+    <!-- Large Cap Funds -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Top Large Cap Funds</h4>
+                    <i class="fas fa-building fa-lg"></i>
+                </div>
+                <div class="card-body">
+                    {% if top_large_cap %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fund Name</th>
+                                    <th>NAV</th>
+                                    <th>AUM (₹ Cr)</th>
+                                    <th>1Y Return</th>
+                                    <th>3Y Return</th>
+                                    <th>5Y Return</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fund in top_large_cap %}
+                                <tr>
+                                    <td>{{ fund.scheme_name }}</td>
+                                    <td>₹{{ fund.scheme_nav }}</td>
+                                    <td>{{ fund.aum }}</td>
+                                    <td class="{{ 'text-success' if fund.one_year_return and fund.one_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.one_year_return is not none %}
+                                        {{ "%.2f"|format(fund.one_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if fund.three_year_return and fund.three_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.three_year_return is not none %}
+                                        {{ "%.2f"|format(fund.three_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if fund.five_year_return and fund.five_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.five_year_return is not none %}
+                                        {{ "%.2f"|format(fund.five_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('mutual_funds.view_details', scheme_code=fund.scheme_code) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center py-3">Loading top large cap funds...</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mid Cap Funds -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Top Mid Cap Funds</h4>
+                    <i class="fas fa-city fa-lg"></i>
+                </div>
+                <div class="card-body">
+                    {% if top_mid_cap %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fund Name</th>
+                                    <th>NAV</th>
+                                    <th>AUM (₹ Cr)</th>
+                                    <th>1Y Return</th>
+                                    <th>3Y Return</th>
+                                    <th>5Y Return</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fund in top_mid_cap %}
+                                <tr>
+                                    <td>{{ fund.scheme_name }}</td>
+                                    <td>₹{{ fund.scheme_nav }}</td>
+                                    <td>{{ fund.aum }}</td>
+                                    <td class="{{ 'text-success' if fund.one_year_return and fund.one_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.one_year_return is not none %}
+                                        {{ "%.2f"|format(fund.one_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if fund.three_year_return and fund.three_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.three_year_return is not none %}
+                                        {{ "%.2f"|format(fund.three_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if fund.five_year_return and fund.five_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.five_year_return is not none %}
+                                        {{ "%.2f"|format(fund.five_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('mutual_funds.view_details', scheme_code=fund.scheme_code) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center py-3">Loading top mid cap funds...</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Small Cap Funds -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Top Small Cap Funds</h4>
+                    <i class="fas fa-home fa-lg"></i>
+                </div>
+                <div class="card-body">
+                    {% if top_small_cap %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fund Name</th>
+                                    <th>NAV</th>
+                                    <th>AUM (₹ Cr)</th>
+                                    <th>1Y Return</th>
+                                    <th>3Y Return</th>
+                                    <th>5Y Return</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fund in top_small_cap %}
+                                <tr>
+                                    <td>{{ fund.scheme_name }}</td>
+                                    <td>₹{{ fund.scheme_nav }}</td>
+                                    <td>{{ fund.aum }}</td>
+                                    <td class="{{ 'text-success' if fund.one_year_return and fund.one_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.one_year_return is not none %}
+                                        {{ "%.2f"|format(fund.one_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if fund.three_year_return and fund.three_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.three_year_return is not none %}
+                                        {{ "%.2f"|format(fund.three_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td class="{{ 'text-success' if fund.five_year_return and fund.five_year_return > 0 else 'text-danger' }}">
+                                        {% if fund.five_year_return is not none %}
+                                        {{ "%.2f"|format(fund.five_year_return) }}%
+                                        {% else %}
+                                        N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('mutual_funds.view_details', scheme_code=fund.scheme_code) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center py-3">Loading top small cap funds...</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mutual Fund Tips -->
+    <div class="row mt-4 mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Mutual Fund Investment Tips</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Start investing early to benefit from compounding</li>
+                                <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Invest regularly through SIPs for rupee cost averaging</li>
+                                <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Diversify your investments across different fund categories</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Choose funds based on your financial goals and risk tolerance</li>
+                                <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Review your portfolio periodically and rebalance if needed</li>
+                                <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Stay invested for the long term to ride out market volatility</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add any JavaScript functionality here
+    });
+</script>
+{% endblock %}

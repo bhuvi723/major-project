@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Sell Holding - {{ portfolio.name }} - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('portfolio.dashboard') }}">Portfolios</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('portfolio.view_portfolio', portfolio_id=portfolio.id) }}">{{ portfolio.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Sell Holding</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3"><i class="fas fa-dollar-sign me-2 text-primary"></i>Sell Holding</h1>
+            <p class="lead">Sell shares from your portfolio.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Sell {{ holding.symbol }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('portfolio.sell_holding', portfolio_id=portfolio.id, holding_id=holding.id) }}">
+                        <div class="mb-3">
+                            <label for="symbol" class="form-label">Symbol</label>
+                            <input type="text" class="form-control" id="symbol" value="{{ holding.symbol }}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="current_quantity" class="form-label">Current Quantity</label>
+                            <input type="text" class="form-control" id="current_quantity" value="{{ holding.quantity }}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="average_price" class="form-label">Average Purchase Price (₹)</label>
+                            <input type="text" class="form-control" id="average_price" value="{{ "{:.2f}".format(holding.average_price) }}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="current_price" class="form-label">Current Price (₹)</label>
+                            <input type="text" class="form-control" id="current_price" value="{{ "{:.2f}".format(holding.current_value() / holding.quantity) }}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quantity" class="form-label">Quantity to Sell</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" max="{{ holding.quantity }}" step="0.01" placeholder="Enter quantity to sell" required>
+                            <div class="form-text">You can sell up to {{ holding.quantity }} shares.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="price" class="form-label">Selling Price (₹)</label>
+                            <input type="number" class="form-control" id="price" name="price" min="0.01" step="0.01" value="{{ "{:.2f}".format(holding.current_value() / holding.quantity) }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="total_amount" class="form-label">Total Amount (₹)</label>
+                            <input type="text" class="form-control" id="total_amount" readonly>
+                            <div class="form-text">This is calculated automatically based on quantity and price.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="profit_loss" class="form-label">Estimated Profit/Loss (₹)</label>
+                            <input type="text" class="form-control" id="profit_loss" readonly>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning">Sell Holding</button>
+                            <a href="{{ url_for('portfolio.view_portfolio', portfolio_id=portfolio.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Holding Summary</h4>
+                </div>
+                <div class="card-body">
+                    <h5>{{ holding.symbol }}</h5>
+                    <div class="mb-3">
+                        <p><strong>Current Value:</strong> ₹{{ "{:,.2f}".format(holding.current_value()) }}</p>
+                        <p><strong>Total Investment:</strong> ₹{{ "{:,.2f}".format(holding.total_investment) }}</p>
+                        <p><strong>Profit/Loss:</strong> 
+                            <span class="{% if holding.profit_loss() > 0 %}positive-return{% elif holding.profit_loss() < 0 %}negative-return{% endif %}">
+                                ₹{{ "{:,.2f}".format(holding.profit_loss()) }}
+                                ({{ "{:.2f}".format(holding.profit_loss_percentage()) }}%)
+                            </span>
+                        </p>
+                    </div>
+                    <a href="{{ url_for('stocks.stock_details', symbol=holding.symbol) }}" class="btn btn-sm btn-primary" target="_blank">
+                        <i class="fas fa-external-link-alt me-1"></i>View Stock Details
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Selling Tips</h4>
+                </div>
+                <div class="card-body">
+                    <h5>Before You Sell</h5>
+                    <ul>
+                        <li><strong>Tax implications:</strong> Consider the tax impact of selling</li>
+                        <li><strong>Market timing:</strong> Avoid selling based on short-term market movements</li>
+                        <li><strong>Portfolio balance:</strong> Consider how this sale affects your overall portfolio</li>
+                        <li><strong>Investment goals:</strong> Ensure this aligns with your long-term strategy</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const quantityInput = document.getElementById('quantity');
+        const priceInput = document.getElementById('price');
+        const totalAmountInput = document.getElementById('total_amount');
+        const profitLossInput = document.getElementById('profit_loss');
+        const averagePriceInput = document.getElementById('average_price');
+        
+        // Calculate total amount and profit/loss
+        function calculateTotal() {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            const averagePrice = parseFloat(averagePriceInput.value) || 0;
+            
+            const total = quantity * price;
+            const profitLoss = (price - averagePrice) * quantity;
+            
+            totalAmountInput.value = '₹' + total.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            
+            profitLossInput.value = '₹' + profitLoss.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            
+            // Add color based on profit/loss
+            if (profitLoss > 0) {
+                profitLossInput.classList.add('is-valid');
+                profitLossInput.classList.remove('is-invalid');
+            } else if (profitLoss < 0) {
+                profitLossInput.classList.add('is-invalid');
+                profitLossInput.classList.remove('is-valid');
+            } else {
+                profitLossInput.classList.remove('is-valid');
+                profitLossInput.classList.remove('is-invalid');
+            }
+        }
+        
+        // Add event listeners
+        quantityInput.addEventListener('input', calculateTotal);
+        priceInput.addEventListener('input', calculateTotal);
+        
+        // Initial calculation
+        calculateTotal();
+    });
+</script>
+{% endblock %}

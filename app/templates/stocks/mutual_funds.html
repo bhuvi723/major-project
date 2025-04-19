@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+
+{% block title %}Mutual Funds - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('stocks.dashboard') }}">Stocks & Funds</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Mutual Funds</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3"><i class="fas fa-chart-pie me-2 text-primary"></i>Mutual Funds</h1>
+            <p class="lead">Explore Indian mutual funds with detailed information and performance metrics.</p>
+        </div>
+    </div>
+    
+    <!-- Search Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="search-input" class="form-control form-control-lg" placeholder="Search for mutual funds...">
+                        <button class="btn btn-primary" type="button" id="search-button">Search</button>
+                    </div>
+                    <div id="search-results" class="mt-2" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mutual Fund Categories -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Mutual Fund Categories</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for category, funds in categories.items() %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0">{{ category }}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>{{ funds|length }} funds</p>
+                                    <ul class="list-group list-group-flush">
+                                        {% for fund in funds %}
+                                        <li class="list-group-item">
+                                            <a href="{{ url_for('stocks.mutual_fund_details', symbol=fund.symbol) }}" class="text-decoration-none">
+                                                {{ fund.name }}
+                                            </a>
+                                            <div class="small text-muted">
+                                                AUM: {{ fund.aum }} | Expense Ratio: {{ fund.expense_ratio }}
+                                            </div>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- All Mutual Funds -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">All Mutual Funds</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>AUM</th>
+                                    <th>Expense Ratio</th>
+                                    <th>1Y Return</th>
+                                    <th>3Y Return</th>
+                                    <th>5Y Return</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fund in mutual_funds %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('stocks.mutual_fund_details', symbol=fund.symbol) }}" class="text-decoration-none">
+                                            {{ fund.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ fund.category }}</td>
+                                    <td>{{ fund.aum }}</td>
+                                    <td>{{ fund.expense_ratio }}</td>
+                                    <td class="{% if loop.index % 4 == 0 %}negative-return{% else %}positive-return{% endif %}">
+                                        {% if loop.index % 4 == 0 %}
+                                        <i class="fas fa-arrow-down me-1"></i>{{ "{:.2f}".format(loop.index * 0.5) }}%
+                                        {% else %}
+                                        <i class="fas fa-arrow-up me-1"></i>{{ "{:.2f}".format(loop.index * 0.8) }}%
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if loop.index % 5 == 0 %}negative-return{% else %}positive-return{% endif %}">
+                                        {% if loop.index % 5 == 0 %}
+                                        <i class="fas fa-arrow-down me-1"></i>{{ "{:.2f}".format(loop.index * 0.3) }}%
+                                        {% else %}
+                                        <i class="fas fa-arrow-up me-1"></i>{{ "{:.2f}".format(loop.index * 1.2) }}%
+                                        {% endif %}
+                                    </td>
+                                    <td class="positive-return">
+                                        <i class="fas fa-arrow-up me-1"></i>{{ "{:.2f}".format(loop.index * 1.5) }}%
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('stocks.mutual_fund_details', symbol=fund.symbol) }}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-chart-line me-1"></i>Details
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#investModal" data-symbol="{{ fund.symbol }}" data-name="{{ fund.name }}">
+                                                <i class="fas fa-shopping-cart me-1"></i>Invest
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comparison Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Fund Comparison</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div id="returns-comparison-chart" style="height: 400px;"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="expense-ratio-chart" style="height: 400px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invest Modal -->
+<div class="modal fade" id="investModal" tabindex="-1" aria-labelledby="investModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="investModalLabel">Invest in Fund</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="invest-form">
+                    <div class="mb-3">
+                        <label for="fund-name" class="form-label">Fund Name</label>
+                        <input type="text" class="form-control" id="fund-name" readonly>
+                        <input type="hidden" id="fund-symbol">
+                    </div>
+                    <div class="mb-3">
+                        <label for="portfolio-select" class="form-label">Select Portfolio</label>
+                        <select class="form-select" id="portfolio-select" required>
+                            <option value="" selected disabled>Choose a portfolio</option>
+                            <option value="1">My Portfolio</option>
+                            <option value="2">Retirement Portfolio</option>
+                            <option value="3">Aggressive Growth</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="investment-type" class="form-label">Investment Type</label>
+                        <select class="form-select" id="investment-type" required>
+                            <option value="lumpsum">Lumpsum</option>
+                            <option value="sip">SIP (Monthly)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount (₹)</label>
+                        <input type="number" class="form-control" id="amount" min="100" step="100" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="invest-button">Invest</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const searchResults = document.getElementById('search-results');
+        
+        function performSearch() {
+            const query = searchInput.value.trim();
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+            
+            // Filter mutual funds based on search query
+            const filteredFunds = {{ mutual_funds|tojson }}.filter(fund => 
+                fund.name.toLowerCase().includes(query.toLowerCase()) || 
+                fund.symbol.toLowerCase().includes(query.toLowerCase())
+            );
+            
+            if (filteredFunds.length === 0) {
+                searchResults.innerHTML = '<div class="alert alert-info">No results found</div>';
+            } else {
+                let resultsHtml = '<div class="list-group">';
+                filteredFunds.forEach(fund => {
+                    resultsHtml += `
+                        <a href="/stocks/mutual-fund/${fund.symbol}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${fund.name}</strong>
+                                    <div class="small text-muted">Mutual Fund</div>
+                                </div>
+                                <span class="badge bg-success">${fund.category}</span>
+                            </div>
+                        </a>
+                    `;
+                });
+                resultsHtml += '</div>';
+                searchResults.innerHTML = resultsHtml;
+            }
+            searchResults.style.display = 'block';
+        }
+        
+        searchButton.addEventListener('click', performSearch);
+        searchInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        // Hide search results when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!searchInput.contains(event.target) && !searchButton.contains(event.target) && !searchResults.contains(event.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+        
+        // Invest modal functionality
+        const investModal = document.getElementById('investModal');
+        investModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const symbol = button.getAttribute('data-symbol');
+            const name = button.getAttribute('data-name');
+            
+            document.getElementById('fund-symbol').value = symbol;
+            document.getElementById('fund-name').value = name;
+        });
+        
+        document.getElementById('invest-button').addEventListener('click', function() {
+            const portfolioSelect = document.getElementById('portfolio-select');
+            const amount = document.getElementById('amount').value;
+            
+            if (!portfolioSelect.value || !amount || amount < 100) {
+                alert('Please select a portfolio and enter a valid amount (minimum ₹100).');
+                return;
+            }
+            
+            alert('Investment functionality will be implemented here.');
+            $('#investModal').modal('hide');
+        });
+        
+        // Returns Comparison Chart
+        const fundNames = [{% for fund in mutual_funds[:5] %}'{{ fund.name }}',{% endfor %}];
+        const oneYearReturns = [12.5, 15.2, 9.8, 18.3, 7.6];
+        const threeYearReturns = [42.1, 38.5, 29.4, 45.2, 22.8];
+        const fiveYearReturns = [76.3, 65.2, 58.7, 82.1, 48.9];
+        
+        const returnsData = [
+            {
+                x: fundNames,
+                y: oneYearReturns,
+                type: 'bar',
+                name: '1 Year Return',
+                marker: {
+                    color: '#3b82f6'
+                }
+            },
+            {
+                x: fundNames,
+                y: threeYearReturns,
+                type: 'bar',
+                name: '3 Year Return',
+                marker: {
+                    color: '#10b981'
+                }
+            },
+            {
+                x: fundNames,
+                y: fiveYearReturns,
+                type: 'bar',
+                name: '5 Year Return',
+                marker: {
+                    color: '#f59e0b'
+                }
+            }
+        ];
+        
+        const returnsLayout = {
+            title: 'Returns Comparison',
+            barmode: 'group',
+            xaxis: {
+                title: 'Fund'
+            },
+            yaxis: {
+                title: 'Return (%)'
+            },
+            legend: {
+                x: 0.1,
+                y: 1,
+                orientation: 'h'
+            },
+            margin: {
+                l: 50,
+                r: 50,
+                b: 100,
+                t: 50,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('returns-comparison-chart', returnsData, returnsLayout, {responsive: true});
+        
+        // Expense Ratio Chart
+        const expenseRatios = [{% for fund in mutual_funds[:10] %}{{ fund.expense_ratio|replace('%', '') }},{% endfor %}];
+        const expenseFundNames = [{% for fund in mutual_funds[:10] %}'{{ fund.name }}',{% endfor %}];
+        
+        const expenseData = [
+            {
+                x: expenseFundNames,
+                y: expenseRatios,
+                type: 'bar',
+                marker: {
+                    color: expenseRatios.map(val => {
+                        if (val < 0.6) return '#10b981';
+                        else if (val < 1.0) return '#f59e0b';
+                        else return '#ef4444';
+                    })
+                }
+            }
+        ];
+        
+        const expenseLayout = {
+            title: 'Expense Ratio Comparison',
+            xaxis: {
+                title: 'Fund'
+            },
+            yaxis: {
+                title: 'Expense Ratio (%)'
+            },
+            margin: {
+                l: 50,
+                r: 50,
+                b: 100,
+                t: 50,
+                pad: 4
+            }
+        };
+        
+        Plotly.newPlot('expense-ratio-chart', expenseData, expenseLayout, {responsive: true});
+    });
+</script>
+{% endblock %}

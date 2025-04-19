@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}Five Year Return Prediction - FinDash{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Five Year Return Prediction</h1>
+        <div>
+            <a href="{{ url_for('mf_analysis.index') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Overview
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Prediction Form -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Enter Fund Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('mf_analysis.five_year_prediction') }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="aum" class="form-label">AUM (Cr.)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-rupee-sign"></i></span>
+                                    <input type="number" class="form-control" id="aum" name="aum" step="0.01" min="0" required>
+                                </div>
+                                <div class="form-text">Assets Under Management in Crores</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="nav" class="form-label">NAV</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-rupee-sign"></i></span>
+                                    <input type="number" class="form-control" id="nav" name="nav" step="0.01" min="0" required>
+                                </div>
+                                <div class="form-text">Net Asset Value</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="rating" class="form-label">Rating</label>
+                                <select class="form-select" id="rating" name="rating" required>
+                                    <option value="" selected disabled>Select Rating</option>
+                                    <option value="5">5 Star</option>
+                                    <option value="4">4 Star</option>
+                                    <option value="3">3 Star</option>
+                                    <option value="2">2 Star</option>
+                                    <option value="1">1 Star</option>
+                                </select>
+                                <div class="form-text">Fund Rating (1-5 Stars)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="equity" class="form-label">Equity %</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="equity" name="equity" min="0" max="100" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">Percentage of Equity in Portfolio</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="risk" class="form-label">Risk Level</label>
+                                <select class="form-select" id="risk" name="risk" required>
+                                    <option value="" selected disabled>Select Risk Level</option>
+                                    <option value="Very High">Very High</option>
+                                    <option value="High">High</option>
+                                    <option value="Moderately High">Moderately High</option>
+                                    <option value="Moderate">Moderate</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Very Low">Very Low</option>
+                                </select>
+                                <div class="form-text">Fund Risk Level</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="type" class="form-label">Fund Type</label>
+                                <select class="form-select" id="type" name="type" required>
+                                    <option value="" selected disabled>Select Fund Type</option>
+                                    <option value="Equity">Equity</option>
+                                    <option value="Hybrid">Hybrid</option>
+                                    <option value="Debt">Debt</option>
+                                    <option value="Solution Oriented">Solution Oriented</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <div class="form-text">Type of Mutual Fund</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="one_year" class="form-label">1 Year Return</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="one_year" name="one_year" step="0.01" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">1 Year Historical Return</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="three_year" class="form-label">3 Year Return</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="three_year" name="three_year" step="0.01" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">3 Year Historical Return</div>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-magic me-2"></i>Predict Five Year Return
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Result -->
+        <div class="col-lg-6">
+            {% if error %}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+            </div>
+            {% endif %}
+
+            {% if result %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">Prediction Result</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="display-4 fw-bold mb-3">
+                        {{ "%.2f"|format(result.prediction) }}%
+                    </div>
+                    <p class="text-muted">Predicted Five Year Return</p>
+                    
+                    <div class="d-flex justify-content-center align-items-center mb-3">
+                        <div class="badge bg-light text-dark p-2 me-2">
+                            <i class="fas fa-arrow-down text-danger me-1"></i>
+                            {{ "%.2f"|format(result.prediction - result.delta) }}%
+                        </div>
+                        <div class="progress flex-grow-1" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <div class="badge bg-light text-dark p-2 ms-2">
+                            <i class="fas fa-arrow-up text-success me-1"></i>
+                            {{ "%.2f"|format(result.prediction + result.delta) }}%
+                        </div>
+                    </div>
+                    <p class="text-muted small">Confidence Interval (±{{ "%.2f"|format(result.delta) }}%)</p>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="small text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        This prediction is based on the provided fund details and historical data. Actual returns may vary.
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-body p-5 text-center">
+                    <img src="{{ url_for('static', filename='img/prediction-placeholder.svg') }}" alt="Prediction" class="img-fluid mb-4" style="max-height: 200px;">
+                    <h4>Enter fund details to get a prediction</h4>
+                    <p class="text-muted">Fill out the form on the left to predict the five year return for a mutual fund.</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- How It Works -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex mb-3">
+                        <div class="me-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">1</div>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">Enter Fund Details</h6>
+                            <p class="text-muted small mb-0">Provide information about the mutual fund including AUM, NAV, equity percentage, and historical returns.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-3">
+                        <div class="me-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">2</div>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">Machine Learning Model</h6>
+                            <p class="text-muted small mb-0">Our model analyzes the input data and compares it with patterns from over 1,000 mutual funds.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">3</div>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">Get Prediction</h6>
+                            <p class="text-muted small mb-0">Receive a prediction for the five year return along with a confidence interval.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Other Prediction Links -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Try Other Prediction Models</h5>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('mf_analysis.one_year_prediction') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-chart-line me-2"></i>One Year Prediction
+                            </a>
+                            <a href="{{ url_for('mf_analysis.three_year_prediction') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-chart-line me-2"></i>Three Year Prediction
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

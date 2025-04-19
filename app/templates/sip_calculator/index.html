@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+
+{% block title %}SIP Calculator - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3"><i class="fas fa-calculator me-2 text-primary"></i>SIP Calculator</h1>
+            <p class="lead">Calculate your SIP (Systematic Investment Plan) returns with inflation adjustment.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-5">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Input Parameters</h4>
+                </div>
+                <div class="card-body">
+                    <form id="sip-form">
+                        <div class="mb-3">
+                            <label for="monthly_investment" class="form-label">Monthly Investment (₹)</label>
+                            <input type="number" class="form-control" id="monthly_investment" name="monthly_investment" value="5000" min="100" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="expected_return_rate" class="form-label">Expected Annual Return (%)</label>
+                            <input type="number" class="form-control" id="expected_return_rate" name="expected_return_rate" value="12" min="1" max="30" step="0.1" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="time_period_years" class="form-label">Investment Time Period (Years)</label>
+                            <input type="number" class="form-control" id="time_period_years" name="time_period_years" value="10" min="1" max="50" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="inflation_rate" class="form-label">Expected Inflation Rate (%)</label>
+                            <input type="number" class="form-control" id="inflation_rate" name="inflation_rate" value="6" min="0" max="20" step="0.1" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Calculate</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">About SIP</h4>
+                </div>
+                <div class="card-body">
+                    <p>A Systematic Investment Plan (SIP) is an investment strategy where you invest a fixed amount regularly in mutual funds or other investment vehicles.</p>
+                    <p>Benefits of SIP:</p>
+                    <ul>
+                        <li>Disciplined investing</li>
+                        <li>Rupee cost averaging</li>
+                        <li>Power of compounding</li>
+                        <li>Flexibility and convenience</li>
+                    </ul>
+                    <p>This calculator helps you understand the potential growth of your SIP investments over time, with the option to adjust for inflation to see the real value of your future corpus.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-7">
+            <div class="card shadow-sm mb-4" id="results-card" style="display: none;">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">SIP Results</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card dashboard-card positive">
+                                <div class="card-body">
+                                    <h5 class="card-title">Total Investment</h5>
+                                    <div class="card-value" id="total-investment">₹0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card dashboard-card positive">
+                                <div class="card-body">
+                                    <h5 class="card-title">Future Value</h5>
+                                    <div class="card-value" id="future-value">₹0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card dashboard-card neutral">
+                                <div class="card-body">
+                                    <h5 class="card-title">Wealth Gained</h5>
+                                    <div class="card-value" id="wealth-gained">₹0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card dashboard-card neutral">
+                                <div class="card-body">
+                                    <h5 class="card-title">Inflation-Adjusted Value</h5>
+                                    <div class="card-value" id="inflation-adjusted-value">₹0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card dashboard-card info">
+                                <div class="card-body">
+                                    <h5 class="card-title">Absolute Returns</h5>
+                                    <div class="card-value" id="absolute-returns">0%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card dashboard-card info">
+                                <div class="card-body">
+                                    <h5 class="card-title">CAGR</h5>
+                                    <div class="card-value" id="cagr">0%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h5>Growth Chart</h5>
+                        <div id="growth-chart" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">SIP Tips</h4>
+                </div>
+                <div class="card-body">
+                    <h5>How to maximize your SIP returns:</h5>
+                    <ul>
+                        <li><strong>Start early:</strong> The power of compounding works best over longer periods.</li>
+                        <li><strong>Be consistent:</strong> Regular investments help in building wealth steadily.</li>
+                        <li><strong>Increase your SIP amount:</strong> Try to increase your investment amount annually.</li>
+                        <li><strong>Diversify:</strong> Invest across different asset classes and fund categories.</li>
+                        <li><strong>Stay invested:</strong> Avoid premature withdrawals to maximize returns.</li>
+                        <li><strong>Consider inflation:</strong> Factor in inflation when planning for long-term goals.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sipForm = document.getElementById('sip-form');
+        const resultsCard = document.getElementById('results-card');
+        
+        sipForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(sipForm);
+            
+            fetch('{{ url_for("sip_calculator.calculate") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display results card
+                resultsCard.style.display = 'block';
+                
+                // Format currency
+                const formatCurrency = (value) => {
+                    return '₹' + value.toLocaleString('en-IN');
+                };
+                
+                // Format percentage
+                const formatPercentage = (value) => {
+                    return value.toFixed(2) + '%';
+                };
+                
+                // Update result values
+                document.getElementById('total-investment').textContent = formatCurrency(data.result.total_investment);
+                document.getElementById('future-value').textContent = formatCurrency(data.result.future_value);
+                document.getElementById('wealth-gained').textContent = formatCurrency(data.result.wealth_gained);
+                document.getElementById('inflation-adjusted-value').textContent = formatCurrency(data.result.inflation_adjusted_future_value);
+                document.getElementById('absolute-returns').textContent = formatPercentage(data.result.absolute_returns);
+                document.getElementById('cagr').textContent = formatPercentage(data.result.cagr);
+                
+                // Create growth chart
+                const years = data.growth_data.years;
+                const investedAmounts = data.growth_data.invested_amounts;
+                const futureValues = data.growth_data.future_values;
+                const inflationAdjustedValues = data.growth_data.inflation_adjusted_values;
+                
+                const trace1 = {
+                    x: years,
+                    y: investedAmounts,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Total Investment',
+                    line: {
+                        color: '#3b82f6',
+                        width: 3
+                    },
+                    marker: {
+                        size: 8
+                    }
+                };
+                
+                const trace2 = {
+                    x: years,
+                    y: futureValues,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Future Value',
+                    line: {
+                        color: '#10b981',
+                        width: 3
+                    },
+                    marker: {
+                        size: 8
+                    }
+                };
+                
+                const trace3 = {
+                    x: years,
+                    y: inflationAdjustedValues,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Inflation-Adjusted Value',
+                    line: {
+                        color: '#f59e0b',
+                        width: 3
+                    },
+                    marker: {
+                        size: 8
+                    }
+                };
+                
+                const layout = {
+                    title: 'SIP Growth Over Time',
+                    xaxis: {
+                        title: 'Years',
+                        tickmode: 'linear',
+                        tick0: 0,
+                        dtick: 1
+                    },
+                    yaxis: {
+                        title: 'Amount (₹)'
+                    },
+                    legend: {
+                        x: 0.1,
+                        y: 1,
+                        orientation: 'h'
+                    },
+                    margin: {
+                        l: 50,
+                        r: 50,
+                        b: 50,
+                        t: 50,
+                        pad: 4
+                    },
+                    hovermode: 'closest',
+                    plot_bgcolor: '#f8fafc',
+                    paper_bgcolor: '#f8fafc'
+                };
+                
+                Plotly.newPlot('growth-chart', [trace1, trace2, trace3], layout, {responsive: true});
+                
+                // Scroll to results
+                resultsCard.scrollIntoView({behavior: 'smooth'});
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while calculating SIP returns. Please try again.');
+            });
+        });
+    });
+</script>
+{% endblock %}

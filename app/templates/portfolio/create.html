@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Portfolio - FinDash{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('portfolio.dashboard') }}">Portfolios</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Create Portfolio</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3"><i class="fas fa-plus-circle me-2 text-primary"></i>Create Portfolio</h1>
+            <p class="lead">Create a new portfolio to track your investments.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Portfolio Details</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('portfolio.create_portfolio') }}">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Portfolio Name</label>
+                            <input type="text" class="form-control" id="name" name="name" placeholder="Enter portfolio name" required>
+                            <div class="form-text">Choose a name that helps you identify this portfolio's purpose.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description (Optional)</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Enter a description for your portfolio"></textarea>
+                            <div class="form-text">Describe the investment strategy or goal of this portfolio.</div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Create Portfolio</button>
+                            <a href="{{ url_for('portfolio.dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Portfolio Tips</h4>
+                </div>
+                <div class="card-body">
+                    <h5>Creating Effective Portfolios</h5>
+                    <ul>
+                        <li><strong>Organize by goal:</strong> Create separate portfolios for different financial goals (retirement, education, etc.)</li>
+                        <li><strong>Track by strategy:</strong> Separate your aggressive investments from conservative ones</li>
+                        <li><strong>Diversify:</strong> Include a mix of stocks, mutual funds, and other assets</li>
+                        <li><strong>Regular review:</strong> Periodically review and rebalance your portfolios</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">What's Next?</h4>
+                </div>
+                <div class="card-body">
+                    <p>After creating your portfolio, you can:</p>
+                    <ul>
+                        <li>Add stocks and mutual funds to your portfolio</li>
+                        <li>Track performance over time</li>
+                        <li>Optimize your portfolio for better returns</li>
+                        <li>Analyze risk and return metrics</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
