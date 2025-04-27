@@ -409,6 +409,66 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM content loaded, initializing charts...');
+
+        // Function to show error message in a chart container
+        function showChartError(containerId, message) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+            }
+        }
+
+        // Function to check if a chart container exists and has proper dimensions
+        function validateChartContainer(containerId, chartName) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error(`${chartName} container not found!`);
+                return false;
+            }
+
+            console.log(`${chartName} container found with dimensions:`,
+                container.offsetWidth, 'x', container.offsetHeight);
+
+            if (container.offsetWidth < 10 || container.offsetHeight < 10) {
+                console.error(`${chartName} container has invalid dimensions:`,
+                    container.offsetWidth, 'x', container.offsetHeight);
+                return false;
+            }
+
+            return true;
+        }
+
+        // Check if Plotly is available
+        if (typeof Plotly === 'undefined') {
+            console.error('Plotly is not defined. Charts will not be rendered.');
+
+            // Show error messages in all chart containers
+            const chartContainers = [
+                'main-chart-loading',
+                'rsi-chart-loading',
+                'macd-chart-loading',
+                'volume-chart-loading',
+                'mfi-chart-loading'
+            ];
+
+            chartContainers.forEach(containerId => {
+                showChartError(containerId, 'Chart library failed to load. Please refresh the page or check your internet connection.');
+            });
+
+            return; // Exit early if Plotly is not available
+        }
+
+        // Ensure all chart containers are properly sized
+        document.querySelectorAll('[id$="-chart"]').forEach(container => {
+            if (container.id === 'main-chart') {
+                container.style.height = '550px';
+            } else {
+                container.style.height = '220px';
+            }
+            container.style.width = '100%';
+            console.log(`Set dimensions for ${container.id}:`, container.style.width, 'x', container.style.height);
+        });
         // Parse data from server
         const openData = {{ open_data|safe }};
         const highData = {{ high_data|safe }};
@@ -417,15 +477,30 @@
         const volumeData = {{ volume_data|safe }};
         const dates = {{ dates|safe }};
 
-        // Check if data is available
-        if (!dates || dates.length === 0) {
+        // Check if data is available and valid
+        if (!dates || dates.length === 0 || !closeData || closeData.length === 0) {
             console.error('No data available for charts');
-            document.getElementById('main-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
-            document.getElementById('rsi-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
-            document.getElementById('macd-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
-            document.getElementById('volume-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
-            document.getElementById('mfi-chart-loading').innerHTML = '<div class="alert alert-warning">No data available for this stock. Please try again later.</div>';
+            showChartError('main-chart-loading', 'No data available for this stock. Please try again later.');
+            showChartError('rsi-chart-loading', 'No data available for this stock. Please try again later.');
+            showChartError('macd-chart-loading', 'No data available for this stock. Please try again later.');
+            showChartError('volume-chart-loading', 'No data available for this stock. Please try again later.');
+            showChartError('mfi-chart-loading', 'No data available for this stock. Please try again later.');
             return;
+        }
+
+        // Check if technical indicators are available
+        if (!rsiData || rsiData.length === 0 || !macdData || macdData.length === 0 || !mfiData || mfiData.length === 0) {
+            console.warn('Some technical indicators are missing or empty');
+            // We'll continue with the main chart but show warnings for the missing indicators
+            if (!rsiData || rsiData.length === 0) {
+                showChartError('rsi-chart-loading', 'RSI data is not available for this stock.');
+            }
+            if (!macdData || macdData.length === 0) {
+                showChartError('macd-chart-loading', 'MACD data is not available for this stock.');
+            }
+            if (!mfiData || mfiData.length === 0) {
+                showChartError('mfi-chart-loading', 'MFI data is not available for this stock.');
+            }
         }
 
         console.log('Data loaded successfully:', {
@@ -660,19 +735,50 @@
         };
 
         // Plot the main chart with all traces
-        Plotly.newPlot('main-chart',
-            [lineTrace, candlestickTrace, ohlcTrace, ma50Trace, ma200Trace, upperBandTrace, lowerBandTrace, volumeTrace],
-            mainChartLayout,
-            {
-                responsive: true,
-                displayModeBar: true,
-                displaylogo: false,
-                modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'eraseshape'],
-                modeBarButtonsToRemove: ['lasso2d']
-            }).then(function() {
-                // Hide loading indicator
-                document.getElementById('main-chart-loading').style.display = 'none';
-            });
+        try {
+            console.log('Rendering main chart...');
+
+            // Check if the container exists
+            const mainChartContainer = document.getElementById('main-chart');
+            if (!mainChartContainer) {
+                console.error('Main chart container not found!');
+            } else {
+                console.log('Main chart container found with dimensions:',
+                    mainChartContainer.offsetWidth, 'x', mainChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                mainChartContainer.style.height = '550px';
+                mainChartContainer.style.width = '100%';
+
+                console.log('Plotting main chart with traces:',
+                    [lineTrace, candlestickTrace, ohlcTrace, ma50Trace, ma200Trace, upperBandTrace, lowerBandTrace, volumeTrace]);
+
+                Plotly.newPlot('main-chart',
+                    [lineTrace, candlestickTrace, ohlcTrace, ma50Trace, ma200Trace, upperBandTrace, lowerBandTrace, volumeTrace],
+                    mainChartLayout,
+                    {
+                        responsive: true,
+                        displayModeBar: true,
+                        displaylogo: false,
+                        modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'eraseshape'],
+                        modeBarButtonsToRemove: ['lasso2d']
+                    })
+                    .then(function() {
+                        console.log('Main chart rendered successfully');
+                        // Hide loading indicator
+                        document.getElementById('main-chart-loading').style.display = 'none';
+                    })
+                    .catch(err => {
+                        console.error('Error rendering main chart:', err);
+                        document.getElementById('main-chart-loading').innerHTML =
+                            '<div class="alert alert-danger">Error rendering chart. Please try refreshing the page.</div>';
+                    });
+            }
+        } catch (error) {
+            console.error('Error in main chart creation:', error);
+            document.getElementById('main-chart-loading').innerHTML =
+                '<div class="alert alert-danger">Error creating chart. Please try refreshing the page.</div>';
+        }
 
         // Chart type toggle buttons
         document.getElementById('chart-type-line').addEventListener('click', function() {
@@ -796,15 +902,47 @@
             }
         };
 
-        Plotly.newPlot('volume-chart', [volumeChartTrace], volumeLayout, {
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d']
-        }).then(function() {
-            // Hide loading indicator
-            document.getElementById('volume-chart-loading').style.display = 'none';
-        });
+        try {
+            console.log('Rendering volume chart...');
+
+            // Check if the container exists and if we have valid volume data
+            const volumeChartContainer = document.getElementById('volume-chart');
+            if (!volumeChartContainer) {
+                console.error('Volume chart container not found!');
+            } else if (!volumeData || volumeData.length === 0 || volumeData.every(val => val === null)) {
+                console.error('Volume data is missing or invalid');
+                document.getElementById('volume-chart-loading').innerHTML =
+                    '<div class="alert alert-warning">Volume data is not available for this stock.</div>';
+            } else {
+                console.log('Volume chart container found with dimensions:',
+                    volumeChartContainer.offsetWidth, 'x', volumeChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                volumeChartContainer.style.height = '220px';
+                volumeChartContainer.style.width = '100%';
+
+                Plotly.newPlot('volume-chart', [volumeChartTrace], volumeLayout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                })
+                .then(function() {
+                    console.log('Volume chart rendered successfully');
+                    // Hide loading indicator
+                    document.getElementById('volume-chart-loading').style.display = 'none';
+                })
+                .catch(err => {
+                    console.error('Error rendering volume chart:', err);
+                    document.getElementById('volume-chart-loading').innerHTML =
+                        '<div class="alert alert-danger">Error rendering volume chart. Please try refreshing the page.</div>';
+                });
+            }
+        } catch (error) {
+            console.error('Error in volume chart creation:', error);
+            document.getElementById('volume-chart-loading').innerHTML =
+                '<div class="alert alert-danger">Error creating volume chart. Please try refreshing the page.</div>';
+        }
 
         // Create RSI chart
         const rsiTrace = {
@@ -938,15 +1076,47 @@
             }
         };
 
-        Plotly.newPlot('rsi-chart', [rsiTrace, overboughtLine, oversoldLine, midLine], rsiLayout, {
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d']
-        }).then(function() {
-            // Hide loading indicator
-            document.getElementById('rsi-chart-loading').style.display = 'none';
-        });
+        try {
+            console.log('Rendering RSI chart...');
+
+            // Check if the container exists and if we have valid RSI data
+            const rsiChartContainer = document.getElementById('rsi-chart');
+            if (!rsiChartContainer) {
+                console.error('RSI chart container not found!');
+            } else if (!rsiData || rsiData.length === 0 || rsiData.every(val => val === null)) {
+                console.error('RSI data is missing or invalid');
+                document.getElementById('rsi-chart-loading').innerHTML =
+                    '<div class="alert alert-warning">RSI data is not available for this stock.</div>';
+            } else {
+                console.log('RSI chart container found with dimensions:',
+                    rsiChartContainer.offsetWidth, 'x', rsiChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                rsiChartContainer.style.height = '220px';
+                rsiChartContainer.style.width = '100%';
+
+                Plotly.newPlot('rsi-chart', [rsiTrace, overboughtLine, oversoldLine, midLine], rsiLayout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                })
+                .then(function() {
+                    console.log('RSI chart rendered successfully');
+                    // Hide loading indicator
+                    document.getElementById('rsi-chart-loading').style.display = 'none';
+                })
+                .catch(err => {
+                    console.error('Error rendering RSI chart:', err);
+                    document.getElementById('rsi-chart-loading').innerHTML =
+                        '<div class="alert alert-danger">Error rendering RSI chart. Please try refreshing the page.</div>';
+                });
+            }
+        } catch (error) {
+            console.error('Error in RSI chart creation:', error);
+            document.getElementById('rsi-chart-loading').innerHTML =
+                '<div class="alert alert-danger">Error creating RSI chart. Please try refreshing the page.</div>';
+        }
 
         // Create MACD chart
         const macdLineTrace = {
@@ -1062,15 +1232,48 @@
             }
         };
 
-        Plotly.newPlot('macd-chart', [macdLineTrace, signalLineTrace, histogramTrace], macdLayout, {
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d']
-        }).then(function() {
-            // Hide loading indicator
-            document.getElementById('macd-chart-loading').style.display = 'none';
-        });
+        try {
+            console.log('Rendering MACD chart...');
+
+            // Check if the container exists and if we have valid MACD data
+            const macdChartContainer = document.getElementById('macd-chart');
+            if (!macdChartContainer) {
+                console.error('MACD chart container not found!');
+            } else if (!macdData || macdData.length === 0 || macdData.every(val => val === null) ||
+                      !signalData || signalData.length === 0 || signalData.every(val => val === null)) {
+                console.error('MACD data is missing or invalid');
+                document.getElementById('macd-chart-loading').innerHTML =
+                    '<div class="alert alert-warning">MACD data is not available for this stock.</div>';
+            } else {
+                console.log('MACD chart container found with dimensions:',
+                    macdChartContainer.offsetWidth, 'x', macdChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                macdChartContainer.style.height = '220px';
+                macdChartContainer.style.width = '100%';
+
+                Plotly.newPlot('macd-chart', [macdLineTrace, signalLineTrace, histogramTrace], macdLayout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                })
+                .then(function() {
+                    console.log('MACD chart rendered successfully');
+                    // Hide loading indicator
+                    document.getElementById('macd-chart-loading').style.display = 'none';
+                })
+                .catch(err => {
+                    console.error('Error rendering MACD chart:', err);
+                    document.getElementById('macd-chart-loading').innerHTML =
+                        '<div class="alert alert-danger">Error rendering MACD chart. Please try refreshing the page.</div>';
+                });
+            }
+        } catch (error) {
+            console.error('Error in MACD chart creation:', error);
+            document.getElementById('macd-chart-loading').innerHTML =
+                '<div class="alert alert-danger">Error creating MACD chart. Please try refreshing the page.</div>';
+        }
 
         // Create MFI chart
         const mfiTrace = {
@@ -1204,15 +1407,47 @@
             }
         };
 
-        Plotly.newPlot('mfi-chart', [mfiTrace, mfiOverboughtLine, mfiOversoldLine, mfiMidLine], mfiLayout, {
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d']
-        }).then(function() {
-            // Hide loading indicator
-            document.getElementById('mfi-chart-loading').style.display = 'none';
-        });
+        try {
+            console.log('Rendering MFI chart...');
+
+            // Check if the container exists and if we have valid MFI data
+            const mfiChartContainer = document.getElementById('mfi-chart');
+            if (!mfiChartContainer) {
+                console.error('MFI chart container not found!');
+            } else if (!mfiData || mfiData.length === 0 || mfiData.every(val => val === null)) {
+                console.error('MFI data is missing or invalid');
+                document.getElementById('mfi-chart-loading').innerHTML =
+                    '<div class="alert alert-warning">MFI data is not available for this stock.</div>';
+            } else {
+                console.log('MFI chart container found with dimensions:',
+                    mfiChartContainer.offsetWidth, 'x', mfiChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                mfiChartContainer.style.height = '220px';
+                mfiChartContainer.style.width = '100%';
+
+                Plotly.newPlot('mfi-chart', [mfiTrace, mfiOverboughtLine, mfiOversoldLine, mfiMidLine], mfiLayout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                })
+                .then(function() {
+                    console.log('MFI chart rendered successfully');
+                    // Hide loading indicator
+                    document.getElementById('mfi-chart-loading').style.display = 'none';
+                })
+                .catch(err => {
+                    console.error('Error rendering MFI chart:', err);
+                    document.getElementById('mfi-chart-loading').innerHTML =
+                        '<div class="alert alert-danger">Error rendering MFI chart. Please try refreshing the page.</div>';
+                });
+            }
+        } catch (error) {
+            console.error('Error in MFI chart creation:', error);
+            document.getElementById('mfi-chart-loading').innerHTML =
+                '<div class="alert alert-danger">Error creating MFI chart. Please try refreshing the page.</div>';
+        }
 
         // Buy stock form functionality
         const quantityInput = document.getElementById('quantity');

@@ -21,7 +21,7 @@
             <p class="lead">A detailed overview of the fund's performance, portfolio, and key metrics.</p>
         </div>
     </div>
-    
+
     <!-- Fund Summary Cards -->
     <div class="row mb-4">
         <div class="col-md-3 mb-3">
@@ -73,7 +73,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Action Buttons -->
     <div class="row mb-4">
         <div class="col-12">
@@ -93,7 +93,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- NAV Chart -->
     <div class="row mb-4">
         <div class="col-12">
@@ -114,7 +114,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Fund Details -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -164,7 +164,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-md-6">
             <div class="card shadow-sm" id="performance">
                 <div class="card-header bg-success text-white">
@@ -231,7 +231,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Portfolio Composition -->
     <div class="row mb-4" id="portfolio">
         <div class="col-12">
@@ -254,7 +254,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Top Holdings -->
     <div class="row mb-4">
         <div class="col-12">
@@ -352,7 +352,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Similar Funds -->
     <div class="row mb-4">
         <div class="col-12">
@@ -489,111 +489,216 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Check if Plotly is available
+        if (typeof Plotly === 'undefined') {
+            console.error('Plotly is not defined. Charts will not be rendered.');
+
+            // Show error messages in chart containers
+            const chartContainers = [
+                'nav-chart',
+                'sector-allocation-chart',
+                'market-cap-allocation-chart'
+            ];
+
+            chartContainers.forEach(containerId => {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.innerHTML = '<div class="alert alert-danger">Chart library failed to load. Please refresh the page or check your internet connection.</div>';
+                }
+            });
+
+            return; // Exit early if Plotly is not available
+        }
+
         // Parse data from server
         const priceData = {{ price_data|safe }};
         const dates = {{ dates|safe }};
-        
+
         // Create NAV chart
-        const navTrace = {
-            x: dates,
-            y: priceData,
-            type: 'scatter',
-            mode: 'lines',
-            name: '{{ fund.name }} NAV',
-            line: {
-                color: '#3b82f6',
-                width: 2
+        try {
+            console.log('Rendering NAV chart...');
+
+            // Check if the container exists
+            const navChartContainer = document.getElementById('nav-chart');
+            if (!navChartContainer) {
+                console.error('NAV chart container not found!');
+            } else {
+                console.log('NAV chart container found with dimensions:',
+                    navChartContainer.offsetWidth, 'x', navChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                navChartContainer.style.height = '400px';
+                navChartContainer.style.width = '100%';
+
+                const navTrace = {
+                    x: dates,
+                    y: priceData,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: '{{ fund.name }} NAV',
+                    line: {
+                        color: '#3b82f6',
+                        width: 2
+                    }
+                };
+
+                const navLayout = {
+                    title: '{{ fund.name }} NAV History',
+                    xaxis: {
+                        title: 'Date',
+                        rangeslider: {
+                            visible: true
+                        }
+                    },
+                    yaxis: {
+                        title: 'NAV (₹)'
+                    },
+                    margin: {
+                        l: 50,
+                        r: 50,
+                        b: 50,
+                        t: 50,
+                        pad: 4
+                    }
+                };
+
+                Plotly.newPlot('nav-chart', [navTrace], navLayout, {responsive: true})
+                    .then(() => console.log('NAV chart rendered successfully'))
+                    .catch(err => {
+                        console.error('Error rendering NAV chart:', err);
+                        navChartContainer.innerHTML = '<div class="alert alert-danger">Error rendering NAV chart. Please try refreshing the page.</div>';
+                    });
             }
-        };
-        
-        const navLayout = {
-            title: '{{ fund.name }} NAV History',
-            xaxis: {
-                title: 'Date',
-                rangeslider: {
-                    visible: true
-                }
-            },
-            yaxis: {
-                title: 'NAV (₹)'
-            },
-            margin: {
-                l: 50,
-                r: 50,
-                b: 50,
-                t: 50,
-                pad: 4
+        } catch (error) {
+            console.error('Error in NAV chart creation:', error);
+            const navChartContainer = document.getElementById('nav-chart');
+            if (navChartContainer) {
+                navChartContainer.innerHTML = '<div class="alert alert-danger">Error creating NAV chart. Please try refreshing the page.</div>';
             }
-        };
-        
-        Plotly.newPlot('nav-chart', [navTrace], navLayout, {responsive: true});
-        
+        }
+
         // Create sector allocation chart
-        const sectors = ['Banking', 'IT', 'Energy', 'FMCG', 'Financial Services', 'Construction', 'Consumer Durables', 'Pharma', 'Auto', 'Others'];
-        const sectorWeights = [18.6, 11.7, 7.8, 6.5, 9.2, 4.8, 5.7, 8.3, 6.9, 20.5];
-        
-        const sectorData = [{
-            values: sectorWeights,
-            labels: sectors,
-            type: 'pie',
-            textinfo: 'label+percent',
-            insidetextorientation: 'radial',
-            marker: {
-                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#a3a3a3']
+        try {
+            console.log('Rendering sector allocation chart...');
+
+            // Check if the container exists
+            const sectorChartContainer = document.getElementById('sector-allocation-chart');
+            if (!sectorChartContainer) {
+                console.error('Sector allocation chart container not found!');
+            } else {
+                console.log('Sector allocation chart container found with dimensions:',
+                    sectorChartContainer.offsetWidth, 'x', sectorChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                sectorChartContainer.style.height = '400px';
+                sectorChartContainer.style.width = '100%';
+
+                const sectors = ['Banking', 'IT', 'Energy', 'FMCG', 'Financial Services', 'Construction', 'Consumer Durables', 'Pharma', 'Auto', 'Others'];
+                const sectorWeights = [18.6, 11.7, 7.8, 6.5, 9.2, 4.8, 5.7, 8.3, 6.9, 20.5];
+
+                const sectorData = [{
+                    values: sectorWeights,
+                    labels: sectors,
+                    type: 'pie',
+                    textinfo: 'label+percent',
+                    insidetextorientation: 'radial',
+                    marker: {
+                        colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#a3a3a3']
+                    }
+                }];
+
+                const sectorLayout = {
+                    showlegend: false,
+                    margin: {
+                        l: 20,
+                        r: 20,
+                        b: 20,
+                        t: 20,
+                        pad: 4
+                    }
+                };
+
+                Plotly.newPlot('sector-allocation-chart', sectorData, sectorLayout, {responsive: true})
+                    .then(() => console.log('Sector allocation chart rendered successfully'))
+                    .catch(err => {
+                        console.error('Error rendering sector allocation chart:', err);
+                        sectorChartContainer.innerHTML = '<div class="alert alert-danger">Error rendering sector allocation chart. Please try refreshing the page.</div>';
+                    });
             }
-        }];
-        
-        const sectorLayout = {
-            showlegend: false,
-            margin: {
-                l: 20,
-                r: 20,
-                b: 20,
-                t: 20,
-                pad: 4
+        } catch (error) {
+            console.error('Error in sector allocation chart creation:', error);
+            const sectorChartContainer = document.getElementById('sector-allocation-chart');
+            if (sectorChartContainer) {
+                sectorChartContainer.innerHTML = '<div class="alert alert-danger">Error creating sector allocation chart. Please try refreshing the page.</div>';
             }
-        };
-        
-        Plotly.newPlot('sector-allocation-chart', sectorData, sectorLayout, {responsive: true});
-        
+        }
+
         // Create market cap allocation chart
-        const marketCaps = ['Large Cap', 'Mid Cap', 'Small Cap', 'Cash & Equivalents'];
-        const marketCapWeights = [65.3, 22.7, 8.5, 3.5];
-        
-        const marketCapData = [{
-            values: marketCapWeights,
-            labels: marketCaps,
-            type: 'pie',
-            textinfo: 'label+percent',
-            insidetextorientation: 'radial',
-            marker: {
-                colors: ['#3b82f6', '#10b981', '#f59e0b', '#a3a3a3']
+        try {
+            console.log('Rendering market cap allocation chart...');
+
+            // Check if the container exists
+            const marketCapChartContainer = document.getElementById('market-cap-allocation-chart');
+            if (!marketCapChartContainer) {
+                console.error('Market cap allocation chart container not found!');
+            } else {
+                console.log('Market cap allocation chart container found with dimensions:',
+                    marketCapChartContainer.offsetWidth, 'x', marketCapChartContainer.offsetHeight);
+
+                // Make sure container is visible
+                marketCapChartContainer.style.height = '400px';
+                marketCapChartContainer.style.width = '100%';
+
+                const marketCaps = ['Large Cap', 'Mid Cap', 'Small Cap', 'Cash & Equivalents'];
+                const marketCapWeights = [65.3, 22.7, 8.5, 3.5];
+
+                const marketCapData = [{
+                    values: marketCapWeights,
+                    labels: marketCaps,
+                    type: 'pie',
+                    textinfo: 'label+percent',
+                    insidetextorientation: 'radial',
+                    marker: {
+                        colors: ['#3b82f6', '#10b981', '#f59e0b', '#a3a3a3']
+                    }
+                }];
+
+                const marketCapLayout = {
+                    showlegend: false,
+                    margin: {
+                        l: 20,
+                        r: 20,
+                        b: 20,
+                        t: 20,
+                        pad: 4
+                    }
+                };
+
+                Plotly.newPlot('market-cap-allocation-chart', marketCapData, marketCapLayout, {responsive: true})
+                    .then(() => console.log('Market cap allocation chart rendered successfully'))
+                    .catch(err => {
+                        console.error('Error rendering market cap allocation chart:', err);
+                        marketCapChartContainer.innerHTML = '<div class="alert alert-danger">Error rendering market cap allocation chart. Please try refreshing the page.</div>';
+                    });
             }
-        }];
-        
-        const marketCapLayout = {
-            showlegend: false,
-            margin: {
-                l: 20,
-                r: 20,
-                b: 20,
-                t: 20,
-                pad: 4
+        } catch (error) {
+            console.error('Error in market cap allocation chart creation:', error);
+            const marketCapChartContainer = document.getElementById('market-cap-allocation-chart');
+            if (marketCapChartContainer) {
+                marketCapChartContainer.innerHTML = '<div class="alert alert-danger">Error creating market cap allocation chart. Please try refreshing the page.</div>';
             }
-        };
-        
-        Plotly.newPlot('market-cap-allocation-chart', marketCapData, marketCapLayout, {responsive: true});
-        
+        }
+
         // Invest form functionality
         const amountInput = document.getElementById('amount');
         const navInput = document.getElementById('nav');
         const unitsInput = document.getElementById('units');
         const investButton = document.getElementById('invest-button');
-        
+
         function calculateUnits() {
             const amount = parseFloat(amountInput.value) || 0;
             const nav = parseFloat(navInput.value) || 0;
-            
+
             if (nav > 0) {
                 const units = amount / nav;
                 unitsInput.value = units.toFixed(3);
@@ -601,37 +706,37 @@
                 unitsInput.value = '0.000';
             }
         }
-        
+
         amountInput.addEventListener('input', calculateUnits);
         calculateUnits();  // Initial calculation
-        
+
         investButton.addEventListener('click', function() {
             const portfolioSelect = document.getElementById('portfolio-select');
             const amount = parseFloat(amountInput.value) || 0;
-            
+
             if (!portfolioSelect.value || amount < 5000) {
                 alert('Please select a portfolio and enter a valid amount (minimum ₹5,000).');
                 return;
             }
-            
+
             alert('Investment functionality will be implemented here.');
             $('#investModal').modal('hide');
         });
-        
+
         // SIP form functionality
         document.getElementById('sip-button').addEventListener('click', function() {
             const portfolioSelect = document.getElementById('sip-portfolio-select');
             const amount = parseFloat(document.getElementById('sip-amount').value) || 0;
-            
+
             if (!portfolioSelect.value || amount < 1000) {
                 alert('Please select a portfolio and enter a valid amount (minimum ₹1,000).');
                 return;
             }
-            
+
             alert('SIP functionality will be implemented here.');
             $('#sipModal').modal('hide');
         });
-        
+
         // Time period buttons
         const periodButtons = document.querySelectorAll('[data-period]');
         periodButtons.forEach(button => {
@@ -640,7 +745,7 @@
                 periodButtons.forEach(btn => btn.classList.remove('active'));
                 // Add active class to clicked button
                 this.classList.add('active');
-                
+
                 // Update chart based on selected period
                 // This is a placeholder - in a real app, you would fetch data for the selected period
                 const period = this.getAttribute('data-period');
