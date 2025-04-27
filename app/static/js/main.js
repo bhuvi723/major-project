@@ -1,4 +1,4 @@
-// Main JavaScript file for FinDash
+// Main JavaScript file for CapitalCurve
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-    
+
     // Format currency values
     document.querySelectorAll('.currency-value').forEach(function(element) {
         const value = parseFloat(element.textContent);
@@ -14,13 +14,13 @@ document.addEventListener('DOMContentLoaded', function() {
             element.textContent = formatCurrency(value);
         }
     });
-    
+
     // Format percentage values
     document.querySelectorAll('.percentage-value').forEach(function(element) {
         const value = parseFloat(element.textContent);
         if (!isNaN(value)) {
             element.textContent = formatPercentage(value);
-            
+
             // Add color class based on value
             if (value > 0) {
                 element.classList.add('positive-return');
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
+
     // Add animation to cards
     const cards = document.querySelectorAll('.card');
     cards.forEach((card, index) => {
@@ -69,7 +69,7 @@ function formatLargeNumber(num) {
 function createLineChart(elementId, labels, data, label, color = '#2563eb') {
     const ctx = document.getElementById(elementId);
     if (!ctx) return;
-    
+
     new Chart(ctx, {
         type: 'line',
         data: {
@@ -121,7 +121,7 @@ function createLineChart(elementId, labels, data, label, color = '#2563eb') {
 function createPieChart(elementId, labels, data, colors) {
     const ctx = document.getElementById(elementId);
     if (!ctx) return;
-    
+
     new Chart(ctx, {
         type: 'pie',
         data: {
@@ -160,7 +160,7 @@ function createPieChart(elementId, labels, data, colors) {
 function createBarChart(elementId, labels, data, label, color = '#2563eb') {
     const ctx = document.getElementById(elementId);
     if (!ctx) return;
-    
+
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -203,7 +203,7 @@ function createBarChart(elementId, labels, data, label, color = '#2563eb') {
 function createHeatmap(elementId, data, xLabels, yLabels, title) {
     const element = document.getElementById(elementId);
     if (!element) return;
-    
+
     const heatmapData = [{
         z: data,
         x: xLabels,
@@ -212,7 +212,7 @@ function createHeatmap(elementId, data, xLabels, yLabels, title) {
         colorscale: 'Viridis',
         showscale: true
     }];
-    
+
     const layout = {
         title: title,
         xaxis: {
@@ -229,7 +229,7 @@ function createHeatmap(elementId, data, xLabels, yLabels, title) {
             pad: 4
         }
     };
-    
+
     Plotly.newPlot(elementId, heatmapData, layout, {responsive: true});
 }
 

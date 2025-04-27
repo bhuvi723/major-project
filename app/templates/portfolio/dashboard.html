@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Portfolio Dashboard - FinDash{% endblock %}
+{% block title %}Portfolio Dashboard - CapitalCurve{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -10,7 +10,7 @@
             <p class="lead">Track and manage your investment portfolios.</p>
         </div>
     </div>
-    
+
     <!-- Portfolio Summary Cards -->
     <div class="row mb-4">
         <div class="col-md-3 mb-3">
@@ -70,7 +70,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Portfolio List -->
     <div class="row mb-4">
         <div class="col-12">
@@ -147,7 +147,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Portfolio Performance -->
     {% if portfolio_data %}
     <div class="row mb-4">
@@ -169,7 +169,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Portfolio Metrics -->
     <div class="row mb-4">
         <div class="col-12">
@@ -214,7 +214,7 @@
         const portfolioNames = [{% for data in portfolio_data %}'{{ data.name }}',{% endfor %}];
         const portfolioValues = [{% for data in portfolio_data %}{{ data.value }},{% endfor %}];
         const portfolioInvestments = [{% for data in portfolio_data %}{{ data.investment }},{% endfor %}];
-        
+
         const valueTrace = {
             x: portfolioNames,
             y: portfolioValues,
@@ -224,7 +224,7 @@
                 color: '#10b981'
             }
         };
-        
+
         const investmentTrace = {
             x: portfolioNames,
             y: portfolioInvestments,
@@ -234,7 +234,7 @@
                 color: '#3b82f6'
             }
         };
-        
+
         const valueLayout = {
             title: 'Portfolio Values',
             barmode: 'group',
@@ -257,12 +257,12 @@
                 pad: 4
             }
         };
-        
+
         Plotly.newPlot('portfolio-value-chart', [valueTrace, investmentTrace], valueLayout, {responsive: true});
-        
+
         // Portfolio Allocation Chart
         const portfolioSizes = [{% for data in portfolio_data %}{{ data.value }},{% endfor %}];
-        
+
         const allocationData = [{
             values: portfolioSizes,
             labels: portfolioNames,
@@ -273,7 +273,7 @@
                 colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
             }
         }];
-        
+
         const allocationLayout = {
             title: 'Portfolio Allocation',
             showlegend: false,
@@ -285,7 +285,7 @@
                 pad: 4
             }
         };
-        
+
         Plotly.newPlot('portfolio-allocation-chart', allocationData, allocationLayout, {responsive: true});
     });
 </script>

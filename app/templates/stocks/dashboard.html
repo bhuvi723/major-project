@@ -1,13 +1,18 @@
 {% extends 'base.html' %}
 
-{% block title %}Stocks & Mutual Funds - FinDash{% endblock %}
+{% block title %}Stocks - CapitalCurve{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="mb-3"><i class="fas fa-exchange-alt me-2 text-primary"></i>Stocks & Mutual Funds</h1>
-            <p class="lead">Explore Indian stocks and mutual funds with detailed information and performance metrics.</p>
+        <div class="col-md-8">
+            <h1 class="mb-3"><i class="fas fa-exchange-alt me-2 text-primary"></i>Stocks</h1>
+            <p class="lead">Explore Indian stocks with detailed information and performance metrics.</p>
+        </div>
+        <div class="col-md-4 text-end d-flex align-items-center justify-content-end">
+            <a href="{{ url_for('stocks.generate_report') }}" class="btn btn-danger btn-lg">
+                <i class="fas fa-file-pdf me-2"></i>Generate Analysis Report
+            </a>
         </div>
     </div>
 
@@ -18,7 +23,7 @@
                 <div class="card-body">
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" id="search-input" class="form-control form-control-lg" placeholder="Search for stocks or mutual funds...">
+                        <input type="text" id="search-input" class="form-control form-control-lg" placeholder="Search for stocks...">
                         <button class="btn btn-primary" type="button" id="search-button">Search</button>
                     </div>
                     <div id="search-results" class="mt-2" style="display: none;"></div>
@@ -32,33 +37,17 @@
         <div class="col-12">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
-                    <ul class="nav nav-tabs card-header-tabs" id="marketTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active text-dark" id="stocks-tab" data-bs-toggle="tab" data-bs-target="#stocks" type="button" role="tab" aria-controls="stocks" aria-selected="true">Stocks</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link text-dark" id="mutual-funds-tab" data-bs-toggle="tab" data-bs-target="#mutual-funds" type="button" role="tab" aria-controls="mutual-funds" aria-selected="false">Mutual Funds</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link text-dark" id="sectors-tab" data-bs-toggle="tab" data-bs-target="#sectors" type="button" role="tab" aria-controls="sectors" aria-selected="false">Sectors</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link text-dark" id="market-cap-tab" data-bs-toggle="tab" data-bs-target="#market-cap" type="button" role="tab" aria-controls="market-cap" aria-selected="false">Market Cap</button>
-                        </li>
-                    </ul>
+                    <h4 class="mb-0 text-white">Stock Listings</h4>
                 </div>
                 <div class="card-body">
-                    <div class="tab-content" id="marketTabsContent">
-                        <!-- Stocks Tab -->
-                        <div class="tab-pane fade show active" id="stocks" role="tabpanel" aria-labelledby="stocks-tab">
+                    <div>
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
                                         <tr>
                                             <th>Symbol</th>
                                             <th>Name</th>
-                                            <th>Sector</th>
-                                            <th>Market Cap</th>
+                                            <th>Symbol Type</th>
                                             <th>Current Price</th>
                                             <th>Change</th>
                                             <th>Actions</th>
@@ -69,8 +58,7 @@
                                         <tr>
                                             <td>{{ stock.symbol }}</td>
                                             <td>{{ stock.name }}</td>
-                                            <td>{{ stock.sector }}</td>
-                                            <td>{{ stock.cap }}</td>
+                                            <td>{{ stock.symbol.split('.')[-1] if '.' in stock.symbol else 'Unknown' }}</td>
                                             <td>₹{{ "{:,.2f}".format(100 + (loop.index * 10)) }}</td>
                                             <td class="{% if loop.index % 3 == 0 %}negative-return{% else %}positive-return{% endif %}">
                                                 {% if loop.index % 3 == 0 %}
@@ -103,137 +91,6 @@
                                         </li>
                                     </ul>
                                 </nav>
-                            </div>
-                        </div>
-
-                        <!-- Mutual Funds Tab -->
-                        <div class="tab-pane fade" id="mutual-funds" role="tabpanel" aria-labelledby="mutual-funds-tab">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Symbol</th>
-                                            <th>Name</th>
-                                            <th>Category</th>
-                                            <th>AUM</th>
-                                            <th>Expense Ratio</th>
-                                            <th>1Y Return</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for fund in mutual_funds %}
-                                        <tr>
-                                            <td>{{ fund.symbol }}</td>
-                                            <td>{{ fund.name }}</td>
-                                            <td>{{ fund.category }}</td>
-                                            <td>{{ fund.aum }}</td>
-                                            <td>{{ fund.expense_ratio }}</td>
-                                            <td class="{% if loop.index % 4 == 0 %}negative-return{% else %}positive-return{% endif %}">
-                                                {% if loop.index % 4 == 0 %}
-                                                <i class="fas fa-arrow-down me-1"></i>{{ "{:.2f}".format(loop.index * 0.5) }}%
-                                                {% else %}
-                                                <i class="fas fa-arrow-up me-1"></i>{{ "{:.2f}".format(loop.index * 0.8) }}%
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <a href="{{ url_for('stocks.mutual_fund_details', symbol=fund.symbol) }}" class="btn btn-sm btn-primary">
-                                                    <i class="fas fa-chart-line me-1"></i>Details
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Sectors Tab -->
-                        <div class="tab-pane fade" id="sectors" role="tabpanel" aria-labelledby="sectors-tab">
-                            <div class="row">
-                                {% for sector, sector_stocks in sectors.items() %}
-                                <div class="col-md-6 col-lg-4 mb-4">
-                                    <div class="card h-100">
-                                        <div class="card-header bg-info text-white">
-                                            <h5 class="mb-0">{{ sector }}</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>{{ sector_stocks|length }} stocks</p>
-                                            <ul class="list-group list-group-flush">
-                                                {% for stock in sector_stocks[:5] %}
-                                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                    <a href="{{ url_for('stocks.stock_details', symbol=stock.symbol) }}" class="text-decoration-none">
-                                                        {{ stock.symbol }}
-                                                    </a>
-                                                    <span class="badge bg-primary rounded-pill">{{ stock.cap }}</span>
-                                                </li>
-                                                {% endfor %}
-                                            </ul>
-                                            {% if sector_stocks|length > 5 %}
-                                            <div class="text-center mt-3">
-                                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#sector-{{ sector|replace(' ', '-')|lower }}">
-                                                    Show more ({{ sector_stocks|length - 5 }})
-                                                </button>
-                                            </div>
-                                            <div class="collapse mt-2" id="sector-{{ sector|replace(' ', '-')|lower }}">
-                                                <ul class="list-group list-group-flush">
-                                                    {% for stock in sector_stocks[5:] %}
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        <a href="{{ url_for('stocks.stock_details', symbol=stock.symbol) }}" class="text-decoration-none">
-                                                            {{ stock.symbol }}
-                                                        </a>
-                                                        <span class="badge bg-primary rounded-pill">{{ stock.cap }}</span>
-                                                    </li>
-                                                    {% endfor %}
-                                                </ul>
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        <!-- Market Cap Tab -->
-                        <div class="tab-pane fade" id="market-cap" role="tabpanel" aria-labelledby="market-cap-tab">
-                            <div class="row">
-                                {% for cap, cap_stocks in market_caps.items() %}
-                                <div class="col-md-4 mb-4">
-                                    <div class="card h-100">
-                                        <div class="card-header {% if cap == 'Large Cap' %}bg-primary{% elif cap == 'Mid Cap' %}bg-success{% else %}bg-warning{% endif %} text-white">
-                                            <h5 class="mb-0">{{ cap }}</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>{{ cap_stocks|length }} stocks</p>
-                                            <div class="table-responsive">
-                                                <table class="table table-sm">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Symbol</th>
-                                                            <th>Name</th>
-                                                            <th>Sector</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {% for stock in cap_stocks %}
-                                                        <tr>
-                                                            <td>
-                                                                <a href="{{ url_for('stocks.stock_details', symbol=stock.symbol) }}" class="text-decoration-none">
-                                                                    {{ stock.symbol }}
-                                                                </a>
-                                                            </td>
-                                                            <td>{{ stock.name }}</td>
-                                                            <td>{{ stock.sector }}</td>
-                                                        </tr>
-                                                        {% endfor %}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
                             </div>
                         </div>
                     </div>
@@ -381,9 +238,7 @@
                     } else {
                         let resultsHtml = '<div class="list-group">';
                         data.forEach(result => {
-                            let url = result.type === 'Stock'
-                                ? `/stocks/details/${result.symbol}`
-                                : `/stocks/mutual-fund/${result.symbol}`;
+                            let url = `/stocks/details/${result.symbol}`;
 
                             resultsHtml += `
                                 <a href="${url}" class="list-group-item list-group-item-action">
@@ -392,7 +247,7 @@
                                             <strong>${result.symbol}</strong> - ${result.name}
                                             <div class="small text-muted">${result.type}</div>
                                         </div>
-                                        <span class="badge ${result.type === 'Stock' ? 'bg-primary' : 'bg-success'}">${result.type === 'Stock' ? result.cap : result.category}</span>
+                                        <span class="badge bg-primary">Stock</span>
                                     </div>
                                 </a>
                             `;

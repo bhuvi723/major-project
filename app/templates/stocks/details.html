@@ -8,6 +8,23 @@
     // Configure Plotly for better performance
     window.PLOTLYENV = window.PLOTLYENV || {};
     window.PLOTLYENV.BASE_URL = 'https://cdn.plot.ly';
+
+    // Set global Plotly configuration for better performance
+    if (typeof Plotly !== 'undefined') {
+        Plotly.setPlotConfig({
+            staticPlot: false,
+            editable: false,
+            displayModeBar: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['sendDataToCloud', 'autoScale2d', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'lasso2d', 'select2d'],
+            showTips: false,
+            showAxisDragHandles: true,
+            showAxisRangeEntryBoxes: true,
+            showLink: false,
+            plotlyServerURL: 'https://chart-studio.plotly.com',
+            responsive: true
+        });
+    }
 </script>
 {% endblock %}
 
@@ -409,6 +426,33 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Add loading state management
+        const chartContainers = [
+            'main-chart',
+            'volume-chart',
+            'rsi-chart',
+            'macd-chart',
+            'mfi-chart'
+        ];
+
+        // Show loading indicators
+        chartContainers.forEach(containerId => {
+            const loadingId = `${containerId}-loading`;
+            const loadingElement = document.getElementById(loadingId);
+            if (loadingElement) {
+                loadingElement.innerHTML = `
+                    <div class="d-flex justify-content-center align-items-center" style="height: 100px;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span class="ms-2">Loading chart data...</span>
+                    </div>
+                `;
+            }
+        });
+
+        // Prioritize UI responsiveness
+        setTimeout(() => {
         console.log('DOM content loaded, initializing charts...');
 
         // Function to show error message in a chart container
@@ -459,7 +503,7 @@
             return; // Exit early if Plotly is not available
         }
 
-        // Ensure all chart containers are properly sized
+        // Ensure all chart containers are properly sized and visible
         document.querySelectorAll('[id$="-chart"]').forEach(container => {
             if (container.id === 'main-chart') {
                 container.style.height = '550px';
@@ -467,7 +511,14 @@
                 container.style.height = '220px';
             }
             container.style.width = '100%';
+            container.style.visibility = 'visible';
+            container.style.display = 'block';
             console.log(`Set dimensions for ${container.id}:`, container.style.width, 'x', container.style.height);
+        });
+
+        // Force browser reflow to ensure containers are properly sized
+        document.querySelectorAll('[id$="-chart"]').forEach(container => {
+            void container.offsetHeight;
         });
         // Parse data from server
         const openData = {{ open_data|safe }};
@@ -753,20 +804,48 @@
                 console.log('Plotting main chart with traces:',
                     [lineTrace, candlestickTrace, ohlcTrace, ma50Trace, ma200Trace, upperBandTrace, lowerBandTrace, volumeTrace]);
 
+                // Create a more optimized configuration for better performance
+                const plotConfig = {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'eraseshape'],
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+                    toImageButtonOptions: {
+                        format: 'png',
+                        filename: '{{ symbol }}_chart',
+                        height: 800,
+                        width: 1200,
+                        scale: 1
+                    },
+                    scrollZoom: true,
+                    showTips: false
+                };
+
+                // Use a more efficient approach by creating a minimal initial chart
+                // and then adding the rest of the traces
                 Plotly.newPlot('main-chart',
-                    [lineTrace, candlestickTrace, ohlcTrace, ma50Trace, ma200Trace, upperBandTrace, lowerBandTrace, volumeTrace],
+                    [lineTrace], // Start with just the line trace for faster initial render
                     mainChartLayout,
-                    {
-                        responsive: true,
-                        displayModeBar: true,
-                        displaylogo: false,
-                        modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'eraseshape'],
-                        modeBarButtonsToRemove: ['lasso2d']
-                    })
+                    plotConfig)
                     .then(function() {
-                        console.log('Main chart rendered successfully');
+                        console.log('Initial main chart rendered successfully');
                         // Hide loading indicator
                         document.getElementById('main-chart-loading').style.display = 'none';
+
+                        // Add the remaining traces after the initial chart is rendered
+                        // This improves perceived performance as the user sees the main chart faster
+                        setTimeout(() => {
+                            console.log('Adding remaining traces to main chart...');
+                            Plotly.addTraces('main-chart', [
+                                candlestickTrace, ohlcTrace, ma50Trace, ma200Trace,
+                                upperBandTrace, lowerBandTrace, volumeTrace
+                            ]).then(() => {
+                                console.log('All traces added successfully');
+                            }).catch(err => {
+                                console.error('Error adding additional traces:', err);
+                            });
+                        }, 100); // Small delay to ensure the initial chart is fully rendered
                     })
                     .catch(err => {
                         console.error('Error rendering main chart:', err);
@@ -921,12 +1000,42 @@
                 volumeChartContainer.style.height = '220px';
                 volumeChartContainer.style.width = '100%';
 
-                Plotly.newPlot('volume-chart', [volumeChartTrace], volumeLayout, {
+                // Use the same optimized configuration for the volume chart
+                const volumeConfig = {
                     responsive: true,
                     displayModeBar: true,
                     displaylogo: false,
-                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
-                })
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+                    toImageButtonOptions: {
+                        format: 'png',
+                        filename: '{{ symbol }}_volume',
+                        height: 400,
+                        width: 1200,
+                        scale: 1
+                    },
+                    scrollZoom: true,
+                    showTips: false,
+                    staticPlot: false
+                };
+
+                // Optimize the volume data to reduce points if there are too many
+                let optimizedVolumeData = volumeChartTrace;
+                if (dates.length > 500) {
+                    // Downsample the data for better performance
+                    const downsampleFactor = Math.ceil(dates.length / 500);
+                    optimizedVolumeData = {
+                        ...volumeChartTrace,
+                        x: dates.filter((_, i) => i % downsampleFactor === 0),
+                        y: volumeData.filter((_, i) => i % downsampleFactor === 0),
+                        marker: {
+                            ...volumeChartTrace.marker,
+                            color: volumeChartTrace.marker.color.filter((_, i) => i % downsampleFactor === 0)
+                        }
+                    };
+                    console.log(`Downsampled volume data from ${dates.length} to ${optimizedVolumeData.x.length} points`);
+                }
+
+                Plotly.newPlot('volume-chart', [optimizedVolumeData], volumeLayout, volumeConfig)
                 .then(function() {
                     console.log('Volume chart rendered successfully');
                     // Hide loading indicator
@@ -1095,12 +1204,41 @@
                 rsiChartContainer.style.height = '220px';
                 rsiChartContainer.style.width = '100%';
 
-                Plotly.newPlot('rsi-chart', [rsiTrace, overboughtLine, oversoldLine, midLine], rsiLayout, {
+                // Use the same optimized configuration for the RSI chart
+                const rsiConfig = {
                     responsive: true,
                     displayModeBar: true,
                     displaylogo: false,
-                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
-                })
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+                    scrollZoom: true,
+                    showTips: false,
+                    staticPlot: false
+                };
+
+                // Optimize the RSI data if there are too many points
+                let optimizedRsiData = [rsiTrace, overboughtLine, oversoldLine, midLine];
+                if (dates.length > 500) {
+                    // Downsample the data for better performance
+                    const downsampleFactor = Math.ceil(dates.length / 500);
+                    const filteredDates = dates.filter((_, i) => i % downsampleFactor === 0);
+                    const filteredRsi = rsiData.filter((_, i) => i % downsampleFactor === 0);
+
+                    // Create optimized traces
+                    optimizedRsiData = [
+                        {
+                            ...rsiTrace,
+                            x: filteredDates,
+                            y: filteredRsi
+                        },
+                        overboughtLine, // These are just two points, no need to optimize
+                        oversoldLine,
+                        midLine
+                    ];
+                    console.log(`Downsampled RSI data from ${dates.length} to ${filteredDates.length} points`);
+                }
+
+                // Render the RSI chart with optimized data
+                Plotly.newPlot('rsi-chart', optimizedRsiData, rsiLayout, rsiConfig)
                 .then(function() {
                     console.log('RSI chart rendered successfully');
                     // Hide loading indicator
@@ -1252,12 +1390,54 @@
                 macdChartContainer.style.height = '220px';
                 macdChartContainer.style.width = '100%';
 
-                Plotly.newPlot('macd-chart', [macdLineTrace, signalLineTrace, histogramTrace], macdLayout, {
+                // Use the same optimized configuration for the MACD chart
+                const macdConfig = {
                     responsive: true,
                     displayModeBar: true,
                     displaylogo: false,
-                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
-                })
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+                    scrollZoom: true,
+                    showTips: false,
+                    staticPlot: false
+                };
+
+                // Optimize the MACD data if there are too many points
+                let optimizedMacdData = [macdLineTrace, signalLineTrace, histogramTrace];
+                if (dates.length > 500) {
+                    // Downsample the data for better performance
+                    const downsampleFactor = Math.ceil(dates.length / 500);
+                    const filteredDates = dates.filter((_, i) => i % downsampleFactor === 0);
+                    const filteredMacd = macdData.filter((_, i) => i % downsampleFactor === 0);
+                    const filteredSignal = signalData.filter((_, i) => i % downsampleFactor === 0);
+                    const filteredHistogram = histogramData.filter((_, i) => i % downsampleFactor === 0);
+
+                    // Create optimized traces
+                    optimizedMacdData = [
+                        {
+                            ...macdLineTrace,
+                            x: filteredDates,
+                            y: filteredMacd
+                        },
+                        {
+                            ...signalLineTrace,
+                            x: filteredDates,
+                            y: filteredSignal
+                        },
+                        {
+                            ...histogramTrace,
+                            x: filteredDates,
+                            y: filteredHistogram,
+                            marker: {
+                                ...histogramTrace.marker,
+                                color: filteredHistogram.map(val => val >= 0 ? '#10b981' : '#ef4444')
+                            }
+                        }
+                    ];
+                    console.log(`Downsampled MACD data from ${dates.length} to ${filteredDates.length} points`);
+                }
+
+                // Render the MACD chart with optimized data
+                Plotly.newPlot('macd-chart', optimizedMacdData, macdLayout, macdConfig)
                 .then(function() {
                     console.log('MACD chart rendered successfully');
                     // Hide loading indicator
@@ -1426,12 +1606,41 @@
                 mfiChartContainer.style.height = '220px';
                 mfiChartContainer.style.width = '100%';
 
-                Plotly.newPlot('mfi-chart', [mfiTrace, mfiOverboughtLine, mfiOversoldLine, mfiMidLine], mfiLayout, {
+                // Use the same optimized configuration for the MFI chart
+                const mfiConfig = {
                     responsive: true,
                     displayModeBar: true,
                     displaylogo: false,
-                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
-                })
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+                    scrollZoom: true,
+                    showTips: false,
+                    staticPlot: false
+                };
+
+                // Optimize the MFI data if there are too many points
+                let optimizedMfiData = [mfiTrace, mfiOverboughtLine, mfiOversoldLine, mfiMidLine];
+                if (dates.length > 500) {
+                    // Downsample the data for better performance
+                    const downsampleFactor = Math.ceil(dates.length / 500);
+                    const filteredDates = dates.filter((_, i) => i % downsampleFactor === 0);
+                    const filteredMfi = mfiData.filter((_, i) => i % downsampleFactor === 0);
+
+                    // Create optimized traces
+                    optimizedMfiData = [
+                        {
+                            ...mfiTrace,
+                            x: filteredDates,
+                            y: filteredMfi
+                        },
+                        mfiOverboughtLine, // These are just two points, no need to optimize
+                        mfiOversoldLine,
+                        mfiMidLine
+                    ];
+                    console.log(`Downsampled MFI data from ${dates.length} to ${filteredDates.length} points`);
+                }
+
+                // Render the MFI chart with optimized data
+                Plotly.newPlot('mfi-chart', optimizedMfiData, mfiLayout, mfiConfig)
                 .then(function() {
                     console.log('MFI chart rendered successfully');
                     // Hide loading indicator
@@ -1492,16 +1701,6 @@
 
                 // Update chart based on selected period
                 const period = this.getAttribute('data-period');
-
-                // Filter data based on selected period
-                let filteredDates = [];
-                let filteredPrices = [];
-                let filteredMA50 = [];
-                let filteredMA200 = [];
-                let filteredUpperBand = [];
-                let filteredLowerBand = [];
-                let filteredVolume = [];
-                let filteredRSI = [];
 
                 // Calculate cutoff date
                 const now = new Date();
@@ -1698,6 +1897,9 @@
         jQuery.expr[':'].contains = function(a, i, m) {
             return jQuery(a).text().toUpperCase().indexOf(m[3].toUpperCase()) >= 0;
         };
+
+        // End of the setTimeout for prioritizing UI responsiveness
+        }, 0); // 0ms delay still allows the browser to render the UI first
     });
 </script>
 {% endblock %}

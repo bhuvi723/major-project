@@ -486,3 +486,66 @@ def search_mutual_funds(query, limit=10):
 
         popular_mf = mf_list[mf_list['schemeCode'].isin(popular_funds)]
         return popular_mf.to_dict('records')
+
+def get_popular_funds(limit=50):
+    """
+    Get a list of popular mutual funds with their details
+
+    Args:
+        limit: Maximum number of funds to return
+
+    Returns:
+        list: List of popular mutual funds with their details
+    """
+    # List of popular fund codes
+    popular_funds = [
+        100033,  # Aditya Birla Sun Life Equity Advantage Fund
+        120503,  # SBI Blue Chip Fund
+        118834,  # Axis Bluechip Fund
+        119598,  # HDFC Index Fund-NIFTY 50 Plan
+        120716,  # Mirae Asset Large Cap Fund
+        122639,  # ICICI Prudential Bluechip Fund
+        125354,  # Kotak Standard Multicap Fund
+        118560,  # Parag Parikh Flexi Cap Fund
+        119237,  # UTI Nifty Index Fund
+        120178,  # Nippon India Small Cap Fund
+        125497,  # Axis Midcap Fund
+        120505,  # SBI Small Cap Fund
+        118533,  # HDFC Mid-Cap Opportunities Fund
+        118701,  # ICICI Prudential Value Discovery Fund
+        118989,  # Kotak Emerging Equity Fund
+        120465,  # Nippon India Growth Fund
+        118565,  # Canara Robeco Emerging Equities Fund
+        118551,  # DSP Midcap Fund
+        118568,  # Franklin India Prima Fund
+        120661,  # Kotak Bluechip Fund
+        120716,  # Mirae Asset Midcap Fund
+        122639,  # ICICI Prudential Midcap Fund
+        118560,  # Axis Small Cap Fund
+        125354,  # Kotak Small Cap Fund
+        118701,  # ICICI Prudential Smallcap Fund
+        118989,  # DSP Small Cap Fund
+        120465,  # HDFC Small Cap Fund
+        118565,  # Aditya Birla Sun Life Small Cap Fund
+        118551,  # Tata Small Cap Fund
+        118568   # L&T Emerging Businesses Fund
+    ]
+
+    # Remove duplicates while preserving order
+    unique_funds = []
+    for fund in popular_funds:
+        if fund not in unique_funds:
+            unique_funds.append(fund)
+
+    results = []
+
+    # Get details for each fund
+    for code in unique_funds[:limit]:  # Limit the number of funds to process
+        try:
+            fund_data = get_mutual_fund_details(code)
+            if fund_data:
+                results.append(fund_data)
+        except Exception as e:
+            current_app.logger.error(f"Error getting data for fund {code}: {str(e)}")
+
+    return results

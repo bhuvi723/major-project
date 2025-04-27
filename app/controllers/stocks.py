@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, send_file
 from flask_login import login_required
 from datetime import datetime, timedelta
 from app.utils.stock_data import (
-    get_all_stocks, get_all_mutual_funds, get_stock_info,
+    get_all_stocks, get_stock_info,
     get_historical_data, calculate_returns
 )
 import pandas as pd
@@ -14,30 +14,14 @@ stocks_bp = Blueprint('stocks', __name__, url_prefix='/stocks')
 @stocks_bp.route('/dashboard')
 @login_required
 def dashboard():
-    # Get all stocks and mutual funds
+    # Get all stocks
     stocks = get_all_stocks()
-    mutual_funds = get_all_mutual_funds()
 
-    # Group stocks by sector for visualization
-    sectors = {}
-    for stock in stocks:
-        sector = stock.get('sector', 'Other')
-        if sector not in sectors:
-            sectors[sector] = []
-        sectors[sector].append(stock)
-
-    # Group stocks by market cap
-    market_caps = {
-        'Large Cap': [s for s in stocks if s.get('cap') == 'Large Cap'],
-        'Mid Cap': [s for s in stocks if s.get('cap') == 'Mid Cap'],
-        'Small Cap': [s for s in stocks if s.get('cap') == 'Small Cap']
-    }
+    # Filter to only include stocks with valid yfinance symbols
+    valid_stocks = [stock for stock in stocks if stock['symbol'].endswith('.NS') or stock['symbol'].endswith('.BO')]
 
     return render_template('stocks/dashboard.html',
-                          stocks=stocks,
-                          mutual_funds=mutual_funds,
-                          sectors=sectors,
-                          market_caps=market_caps)
+                          stocks=valid_stocks)
 
 @stocks_bp.route('/details/<symbol>')
 @login_required
@@ -102,8 +86,17 @@ def stock_details(symbol):
             # If still empty, try alternative method
             if historical_data.empty:
                 print(f"Still no historical data for {symbol}, using alternative method")
-                from app.utils.indian_stocks import get_historical_data_alternative
-                historical_data = get_historical_data_alternative(symbol)
+                try:
+                    from app.utils.indian_stocks import get_historical_data_alternative
+                    historical_data = get_historical_data_alternative(symbol)
+
+                    # Verify the data is valid
+                    if historical_data.empty or 'Close' not in historical_data.columns:
+                        print(f"Alternative method returned invalid data for {symbol}, returning empty DataFrame")
+                        historical_data = pd.DataFrame()  # Reset to empty DataFrame
+                except Exception as e:
+                    print(f"Error using alternative method for {symbol}: {e}")
+                    historical_data = pd.DataFrame()  # Reset to empty DataFrame
 
     # Calculate returns
     returns = calculate_returns(historical_data)
@@ -112,84 +105,141 @@ def stock_details(symbol):
     if not historical_data.empty:
         print(f"Calculating technical indicators for {symbol}")
         try:
-            # Calculate moving averages
-            historical_data['MA50'] = historical_data['Close'].rolling(window=50).mean()
-            historical_data['MA200'] = historical_data['Close'].rolling(window=200).mean()
+            # Calculate moving averages and Bollinger Bands
+            try:
+                # Calculate moving averages
+                historical_data['MA50'] = historical_data['Close'].rolling(window=50).mean()
+                historical_data['MA200'] = historical_data['Close'].rolling(window=200).mean()
 
-            # Calculate Bollinger Bands
-            historical_data['MA20'] = historical_data['Close'].rolling(window=20).mean()
-            historical_data['STD20'] = historical_data['Close'].rolling(window=20).std()
-            historical_data['Upper_Band'] = historical_data['MA20'] + (historical_data['STD20'] * 2)
-            historical_data['Lower_Band'] = historical_data['MA20'] - (historical_data['STD20'] * 2)
+                # Calculate Bollinger Bands
+                historical_data['MA20'] = historical_data['Close'].rolling(window=20).mean()
+                historical_data['STD20'] = historical_data['Close'].rolling(window=20).std()
+                historical_data['Upper_Band'] = historical_data['MA20'] + (historical_data['STD20'] * 2)
+                historical_data['Lower_Band'] = historical_data['MA20'] - (historical_data['STD20'] * 2)
+                print(f"Successfully calculated moving averages and Bollinger Bands for {symbol}")
+            except Exception as ma_error:
+                print(f"Error calculating moving averages and Bollinger Bands for {symbol}: {ma_error}")
+                # Create default values
+                historical_data['MA50'] = historical_data['Close']
+                historical_data['MA200'] = historical_data['Close']
+                historical_data['MA20'] = historical_data['Close']
+                historical_data['Upper_Band'] = historical_data['Close'] * 1.05
+                historical_data['Lower_Band'] = historical_data['Close'] * 0.95
 
             # Calculate RSI with better handling of edge cases
-            delta = historical_data['Close'].diff()
-            gain = delta.where(delta > 0, 0)
-            loss = -delta.where(delta < 0, 0)
-            avg_gain = gain.rolling(window=14).mean()
-            avg_loss = loss.rolling(window=14).mean()
-            # Handle division by zero
-            rs = avg_gain / avg_loss.replace(0, np.finfo(float).eps)
-            historical_data['RSI'] = 100 - (100 / (1 + rs))
-            # Ensure RSI is within bounds
-            historical_data['RSI'] = historical_data['RSI'].clip(0, 100)
+            try:
+                delta = historical_data['Close'].diff()
+                gain = delta.where(delta > 0, 0)
+                loss = -delta.where(delta < 0, 0)
+                avg_gain = gain.rolling(window=14).mean()
+                avg_loss = loss.rolling(window=14).mean()
+                # Handle division by zero
+                rs = avg_gain / avg_loss.replace(0, np.finfo(float).eps)
+                historical_data['RSI'] = 100 - (100 / (1 + rs))
+                # Ensure RSI is within bounds
+                historical_data['RSI'] = historical_data['RSI'].clip(0, 100)
+                print(f"Successfully calculated RSI for {symbol}")
+            except Exception as rsi_error:
+                print(f"Error calculating RSI for {symbol}: {rsi_error}")
+                # Create default RSI values
+                historical_data['RSI'] = pd.Series([50] * len(historical_data), index=historical_data.index)
 
             # Calculate MACD
-            historical_data['EMA12'] = historical_data['Close'].ewm(span=12, adjust=False).mean()
-            historical_data['EMA26'] = historical_data['Close'].ewm(span=26, adjust=False).mean()
-            historical_data['MACD'] = historical_data['EMA12'] - historical_data['EMA26']
-            historical_data['Signal'] = historical_data['MACD'].ewm(span=9, adjust=False).mean()
-            historical_data['Histogram'] = historical_data['MACD'] - historical_data['Signal']
+            try:
+                historical_data['EMA12'] = historical_data['Close'].ewm(span=12, adjust=False).mean()
+                historical_data['EMA26'] = historical_data['Close'].ewm(span=26, adjust=False).mean()
+                historical_data['MACD'] = historical_data['EMA12'] - historical_data['EMA26']
+                historical_data['Signal'] = historical_data['MACD'].ewm(span=9, adjust=False).mean()
+                historical_data['Histogram'] = historical_data['MACD'] - historical_data['Signal']
+                print(f"Successfully calculated MACD for {symbol}")
+            except Exception as macd_error:
+                print(f"Error calculating MACD for {symbol}: {macd_error}")
+                # Create default MACD values
+                data_length = len(historical_data)
+                historical_data['MACD'] = pd.Series([0] * data_length, index=historical_data.index)
+                historical_data['Signal'] = pd.Series([0] * data_length, index=historical_data.index)
+                historical_data['Histogram'] = pd.Series([0] * data_length, index=historical_data.index)
 
             # Calculate Money Flow Index (MFI) with better handling of edge cases
-            typical_price = (historical_data['High'] + historical_data['Low'] + historical_data['Close']) / 3
-            money_flow = typical_price * historical_data['Volume']
+            try:
+                typical_price = (historical_data['High'] + historical_data['Low'] + historical_data['Close']) / 3
+                money_flow = typical_price * historical_data['Volume']
 
-            # Get positive and negative money flow
-            positive_flow = money_flow.where(typical_price > typical_price.shift(1), 0)
-            negative_flow = money_flow.where(typical_price < typical_price.shift(1), 0)
+                # Get positive and negative money flow
+                positive_flow = money_flow.where(typical_price > typical_price.shift(1), 0)
+                negative_flow = money_flow.where(typical_price < typical_price.shift(1), 0)
 
-            # Calculate money flow ratio and MFI
-            positive_flow_sum = positive_flow.rolling(window=14).sum()
-            negative_flow_sum = negative_flow.rolling(window=14).sum()
-            # Handle division by zero
-            money_ratio = positive_flow_sum / negative_flow_sum.replace(0, np.finfo(float).eps)
-            historical_data['MFI'] = 100 - (100 / (1 + money_ratio))
-            # Ensure MFI is within bounds
-            historical_data['MFI'] = historical_data['MFI'].clip(0, 100)
+                # Calculate money flow ratio and MFI
+                positive_flow_sum = positive_flow.rolling(window=14).sum()
+                negative_flow_sum = negative_flow.rolling(window=14).sum()
+                # Handle division by zero
+                money_ratio = positive_flow_sum / negative_flow_sum.replace(0, np.finfo(float).eps)
+                historical_data['MFI'] = 100 - (100 / (1 + money_ratio))
+                # Ensure MFI is within bounds
+                historical_data['MFI'] = historical_data['MFI'].clip(0, 100)
+                print(f"Successfully calculated MFI for {symbol}")
+            except Exception as mfi_error:
+                print(f"Error calculating MFI for {symbol}: {mfi_error}")
+                # Create default MFI values
+                historical_data['MFI'] = pd.Series([50] * len(historical_data), index=historical_data.index)
 
             print(f"Successfully calculated technical indicators for {symbol}")
         except Exception as e:
             print(f"Error calculating technical indicators for {symbol}: {e}")
             # Create default values for technical indicators
-            historical_data['MA50'] = historical_data['Close']
-            historical_data['MA200'] = historical_data['Close']
-            historical_data['Upper_Band'] = historical_data['Close'] * 1.05
-            historical_data['Lower_Band'] = historical_data['Close'] * 0.95
-            historical_data['RSI'] = pd.Series([50] * len(historical_data), index=historical_data.index)
-            historical_data['MACD'] = pd.Series([0] * len(historical_data), index=historical_data.index)
-            historical_data['Signal'] = pd.Series([0] * len(historical_data), index=historical_data.index)
-            historical_data['Histogram'] = pd.Series([0] * len(historical_data), index=historical_data.index)
-            historical_data['MFI'] = pd.Series([50] * len(historical_data), index=historical_data.index)
+            try:
+                # Make sure we have numpy available
+                import numpy as np
 
-        # Calculate Average True Range (ATR)
-        high_low = historical_data['High'] - historical_data['Low']
-        high_close = (historical_data['High'] - historical_data['Close'].shift()).abs()
-        low_close = (historical_data['Low'] - historical_data['Close'].shift()).abs()
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = ranges.max(axis=1)
-        historical_data['ATR'] = true_range.rolling(window=14).mean()
+                # Get the length of the dataframe
+                data_length = len(historical_data)
 
-        # Calculate Monthly Volatility
-        returns = historical_data['Close'].pct_change()
-        historical_data['MonthlyVolatility'] = returns.rolling(window=21).std() * (21 ** 0.5)  # 21 trading days in a month
+                # Create default values for technical indicators
+                historical_data['MA50'] = historical_data['Close']
+                historical_data['MA200'] = historical_data['Close']
+                historical_data['Upper_Band'] = historical_data['Close'] * 1.05
+                historical_data['Lower_Band'] = historical_data['Close'] * 0.95
+                historical_data['RSI'] = pd.Series([50] * data_length, index=historical_data.index)
+                historical_data['MACD'] = pd.Series([0] * data_length, index=historical_data.index)
+                historical_data['Signal'] = pd.Series([0] * data_length, index=historical_data.index)
+                historical_data['Histogram'] = pd.Series([0] * data_length, index=historical_data.index)
+                historical_data['MFI'] = pd.Series([50] * data_length, index=historical_data.index)
 
-        # Calculate Beta (using a simple approximation)
-        # In a real app, you would compare against a market index
-        market_returns = returns.rolling(window=50).mean()  # Simplified market returns
-        covariance = returns.rolling(window=50).cov(market_returns)
-        variance = market_returns.rolling(window=50).var()
-        historical_data['Beta'] = covariance / variance
+                print(f"Created default technical indicators for {symbol}")
+            except Exception as inner_e:
+                print(f"Error creating default technical indicators for {symbol}: {inner_e}")
+                # If we can't even create default indicators, we'll generate synthetic data later
+
+        # Calculate additional indicators with better error handling
+        try:
+            # Calculate Average True Range (ATR)
+            high_low = historical_data['High'] - historical_data['Low']
+            high_close = (historical_data['High'] - historical_data['Close'].shift()).abs()
+            low_close = (historical_data['Low'] - historical_data['Close'].shift()).abs()
+            ranges = pd.concat([high_low, high_close, low_close], axis=1)
+            true_range = ranges.max(axis=1)
+            historical_data['ATR'] = true_range.rolling(window=14).mean()
+            print(f"Successfully calculated ATR for {symbol}")
+
+            # Calculate Monthly Volatility
+            returns = historical_data['Close'].pct_change()
+            historical_data['MonthlyVolatility'] = returns.rolling(window=21).std() * (21 ** 0.5)  # 21 trading days in a month
+            print(f"Successfully calculated Monthly Volatility for {symbol}")
+
+            # Calculate Beta (using a simple approximation)
+            # In a real app, you would compare against a market index
+            market_returns = returns.rolling(window=50).mean()  # Simplified market returns
+            covariance = returns.rolling(window=50).cov(market_returns)
+            variance = market_returns.rolling(window=50).var()
+            historical_data['Beta'] = covariance / variance
+            print(f"Successfully calculated Beta for {symbol}")
+        except Exception as add_error:
+            print(f"Error calculating additional indicators for {symbol}: {add_error}")
+            # Create default values
+            data_length = len(historical_data)
+            historical_data['ATR'] = pd.Series([historical_data['Close'].mean() * 0.02] * data_length, index=historical_data.index)  # 2% of price
+            historical_data['MonthlyVolatility'] = pd.Series([0.05] * data_length, index=historical_data.index)  # 5% monthly volatility
+            historical_data['Beta'] = pd.Series([1.0] * data_length, index=historical_data.index)  # Neutral beta
 
         # Add these values to stock_info for the template
         if 'RSI' in historical_data:
@@ -300,61 +350,127 @@ def stock_details(symbol):
 
     # Ensure we have data for the charts
     if not dates or len(dates) == 0:
-        print("No dates available for charts, generating default data")
-        # Generate default data for charts
-        current_date = datetime.now()
-        dates = [(current_date - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30, 0, -1)]
+        print(f"No dates available for charts for {symbol}, trying alternative approaches")
 
-        # Get current price or use default
-        current_price = stock_info.get('regularMarketPrice', 100.0)
+        # Try with different symbol formats if not already tried
+        if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
+            # Try with NSE suffix
+            nse_symbol = f"{symbol}.NS"
+            print(f"Trying with NSE suffix for charts: {nse_symbol}")
+            historical_data = get_historical_data(nse_symbol)
+            if not historical_data.empty:
+                print(f"Successfully got historical data for charts using {nse_symbol}")
+                symbol = nse_symbol
+                # Update dates and data arrays
+                dates = historical_data.index.strftime('%Y-%m-%d').tolist()
+                open_data = historical_data['Open'].tolist()
+                high_data = historical_data['High'].tolist()
+                low_data = historical_data['Low'].tolist()
+                close_data = historical_data['Close'].tolist()
+                volume_data = historical_data['Volume'].tolist()
 
-        # Generate synthetic price data
-        import numpy as np
-        np.random.seed(hash(symbol) % 2**32)  # Use symbol as seed for reproducibility
+                # Recalculate technical indicators
+                if 'MA50' in historical_data:
+                    ma50_data = historical_data['MA50'].tolist()
+                if 'MA200' in historical_data:
+                    ma200_data = historical_data['MA200'].tolist()
+                if 'Upper_Band' in historical_data:
+                    upper_band_data = historical_data['Upper_Band'].tolist()
+                if 'Lower_Band' in historical_data:
+                    lower_band_data = historical_data['Lower_Band'].tolist()
+                if 'RSI' in historical_data:
+                    rsi_data = historical_data['RSI'].tolist()
+                if 'MACD' in historical_data:
+                    macd_data = historical_data['MACD'].tolist()
+                if 'Signal' in historical_data:
+                    signal_data = historical_data['Signal'].tolist()
+                if 'Histogram' in historical_data:
+                    histogram_data = historical_data['Histogram'].tolist()
+                if 'MFI' in historical_data:
+                    mfi_data = historical_data['MFI'].tolist()
+            else:
+                # Try with BSE suffix
+                bse_symbol = f"{symbol}.BO"
+                print(f"Trying with BSE suffix for charts: {bse_symbol}")
+                historical_data = get_historical_data(bse_symbol)
+                if not historical_data.empty:
+                    print(f"Successfully got historical data for charts using {bse_symbol}")
+                    symbol = bse_symbol
+                    # Update dates and data arrays
+                    dates = historical_data.index.strftime('%Y-%m-%d').tolist()
+                    open_data = historical_data['Open'].tolist()
+                    high_data = historical_data['High'].tolist()
+                    low_data = historical_data['Low'].tolist()
+                    close_data = historical_data['Close'].tolist()
+                    volume_data = historical_data['Volume'].tolist()
 
-        # Generate close prices with random walk
-        close_data = [current_price]
-        for i in range(1, 30):
-            close_data.append(close_data[-1] * (1 + np.random.normal(0, 0.01)))
-        close_data.reverse()  # Reverse to get chronological order
+                    # Recalculate technical indicators
+                    if 'MA50' in historical_data:
+                        ma50_data = historical_data['MA50'].tolist()
+                    if 'MA200' in historical_data:
+                        ma200_data = historical_data['MA200'].tolist()
+                    if 'Upper_Band' in historical_data:
+                        upper_band_data = historical_data['Upper_Band'].tolist()
+                    if 'Lower_Band' in historical_data:
+                        lower_band_data = historical_data['Lower_Band'].tolist()
+                    if 'RSI' in historical_data:
+                        rsi_data = historical_data['RSI'].tolist()
+                    if 'MACD' in historical_data:
+                        macd_data = historical_data['MACD'].tolist()
+                    if 'Signal' in historical_data:
+                        signal_data = historical_data['Signal'].tolist()
+                    if 'Histogram' in historical_data:
+                        histogram_data = historical_data['Histogram'].tolist()
+                    if 'MFI' in historical_data:
+                        mfi_data = historical_data['MFI'].tolist()
 
-        # Generate other OHLC data
-        open_data = [price * (1 + np.random.normal(0, 0.005)) for price in close_data]
-        high_data = [max(open_data[i], close_data[i]) * (1 + abs(np.random.normal(0, 0.005))) for i in range(30)]
-        low_data = [min(open_data[i], close_data[i]) * (1 - abs(np.random.normal(0, 0.005))) for i in range(30)]
-        volume_data = [1000000 * (1 + np.random.normal(0, 0.2)) for _ in range(30)]
+        # If we still don't have data, try using the alternative method
+        if not dates or len(dates) == 0:
+            print(f"Still no chart data for {symbol}, trying alternative method")
+            try:
+                from app.utils.indian_stocks import get_historical_data_alternative
+                alt_data = get_historical_data_alternative(symbol)
+                if not alt_data.empty:
+                    print(f"Successfully got alternative historical data for {symbol}")
+                    # Update dates and data arrays
+                    dates = alt_data.index.strftime('%Y-%m-%d').tolist()
+                    open_data = alt_data['Open'].tolist()
+                    high_data = alt_data['High'].tolist()
+                    low_data = alt_data['Low'].tolist()
+                    close_data = alt_data['Close'].tolist()
+                    volume_data = alt_data['Volume'].tolist() if 'Volume' in alt_data else [0] * len(dates)
 
-        # Generate technical indicators
-        ma50_data = [sum(close_data[max(0, i-50):i+1])/min(i+1, 50) for i in range(30)]
-        ma200_data = [sum(close_data[max(0, i-200):i+1])/min(i+1, 200) for i in range(30)]
+                    # Calculate basic technical indicators
+                    print(f"Calculating technical indicators for alternative data for {symbol}")
+                    try:
+                        # Calculate moving averages
+                        ma50 = alt_data['Close'].rolling(window=50).mean()
+                        ma200 = alt_data['Close'].rolling(window=200).mean()
+                        ma50_data = ma50.tolist()
+                        ma200_data = ma200.tolist()
 
-        # Simple RSI calculation
-        rsi_data = [50 + np.random.normal(0, 10) for _ in range(30)]
-        rsi_data = [max(0, min(100, rsi)) for rsi in rsi_data]  # Clamp between 0 and 100
+                        # Calculate Bollinger Bands
+                        ma20 = alt_data['Close'].rolling(window=20).mean()
+                        std20 = alt_data['Close'].rolling(window=20).std()
+                        upper_band = ma20 + (std20 * 2)
+                        lower_band = ma20 - (std20 * 2)
+                        upper_band_data = upper_band.tolist()
+                        lower_band_data = lower_band.tolist()
 
-        # Simple MACD
-        macd_data = [np.random.normal(0, 2) for _ in range(30)]
-        signal_data = [sum(macd_data[max(0, i-9):i+1])/min(i+1, 9) for i in range(30)]
-        histogram_data = [macd_data[i] - signal_data[i] for i in range(30)]
+                        print(f"Successfully calculated basic indicators for alternative data")
+                    except Exception as e:
+                        print(f"Error calculating indicators for alternative data: {e}")
+            except Exception as e:
+                print(f"Error using alternative method for chart data: {e}")
 
-        # Simple MFI
-        mfi_data = [50 + np.random.normal(0, 15) for _ in range(30)]
-        mfi_data = [max(0, min(100, mfi)) for mfi in mfi_data]  # Clamp between 0 and 100
-
-        # Bollinger Bands
-        std_dev = np.std(close_data)
-        upper_band_data = [ma50_data[i] + 2 * std_dev for i in range(30)]
-        lower_band_data = [ma50_data[i] - 2 * std_dev for i in range(30)]
-
-    # Find similar stocks (same sector)
+    # Get all stocks for similar stocks section
     all_stocks = get_all_stocks()
-    sector = None
-    for s in all_stocks:
-        if s['symbol'] == symbol or s['symbol'] == f"{symbol}.NS" or s['symbol'] == f"{symbol}.BO":
-            sector = s.get('sector')
-            break
 
-    similar_stocks = [s for s in all_stocks if s.get('sector') == sector and
+    # Filter to only include stocks with valid yfinance symbols
+    valid_stocks = [s for s in all_stocks if s['symbol'].endswith('.NS') or s['symbol'].endswith('.BO')]
+
+    # Find similar stocks (excluding the current one)
+    similar_stocks = [s for s in valid_stocks if
                      s['symbol'] != symbol and
                      s['symbol'] != f"{symbol}.NS" and
                      s['symbol'] != f"{symbol}.BO"][:5]
@@ -379,53 +495,36 @@ def stock_details(symbol):
                           mfi_data=json.dumps(mfi_data),
                           similar_stocks=similar_stocks)
 
-@stocks_bp.route('/mutual-funds')
+# Mutual funds report generation route
+@stocks_bp.route('/generate-report', methods=['GET', 'POST'])
 @login_required
-def mutual_funds():
-    # Get all mutual funds
-    mutual_funds = get_all_mutual_funds()
+def generate_report():
+    if request.method == 'POST':
+        # Get user information from the form
+        user_name = request.form.get('user_name', 'Investor')
+        selected_funds = request.form.getlist('funds')
+        time_period = request.form.get('time_period', '1y')
 
-    # Group by category
-    categories = {}
-    for fund in mutual_funds:
-        category = fund.get('category', 'Other')
-        if category not in categories:
-            categories[category] = []
-        categories[category].append(fund)
+        # Generate the report
+        from app.utils.report_generator import generate_mutual_funds_report
+        report_path = generate_mutual_funds_report(user_name, selected_funds, time_period)
 
-    return render_template('stocks/mutual_funds.html',
-                          mutual_funds=mutual_funds,
-                          categories=categories)
+        # Return the report for download
+        return send_file(report_path, as_attachment=True,
+                       download_name=f"Mutual_Funds_Analysis_Report_{user_name.replace(' ', '_')}.pdf",
+                       mimetype='application/pdf')
 
-@stocks_bp.route('/mutual-fund/<symbol>')
-@login_required
-def mutual_fund_details(symbol):
-    # Find the mutual fund
-    mutual_funds = get_all_mutual_funds()
-    fund = None
-    for mf in mutual_funds:
-        if mf['symbol'] == symbol:
-            fund = mf
-            break
+    # For GET request, show the form
+    # Get all stocks for selection
+    stocks = get_all_stocks()
+    valid_stocks = [stock for stock in stocks if stock['symbol'].endswith('.NS') or stock['symbol'].endswith('.BO')]
 
-    if not fund:
-        return render_template('stocks/not_found.html', symbol=symbol)
+    # Get top performing stocks for default selection
+    top_stocks = sorted(valid_stocks, key=lambda x: x.get('cap', 'Small Cap'))[:10]
 
-    # Get historical data
-    historical_data = get_historical_data(symbol)
-
-    # Prepare data for charts
-    price_data = historical_data['Close'].tolist() if not historical_data.empty else []
-    dates = historical_data.index.strftime('%Y-%m-%d').tolist() if not historical_data.empty else []
-
-    # Find similar funds (same category)
-    similar_funds = [mf for mf in mutual_funds if mf.get('category') == fund.get('category') and mf['symbol'] != symbol]
-
-    return render_template('stocks/mutual_fund_details.html',
-                          fund=fund,
-                          price_data=json.dumps(price_data),
-                          dates=json.dumps(dates),
-                          similar_funds=similar_funds)
+    return render_template('stocks/generate_report.html',
+                          stocks=valid_stocks,
+                          top_stocks=top_stocks)
 
 @stocks_bp.route('/search')
 @login_required
@@ -435,32 +534,22 @@ def search():
     if not query:
         return jsonify([])
 
-    # Search in stocks and mutual funds
+    # Search in stocks only
     stocks = get_all_stocks()
-    mutual_funds = get_all_mutual_funds()
 
-    # Filter stocks and mutual funds by query
-    filtered_stocks = [s for s in stocks if query in s['symbol'] or query in s['name'].upper()]
-    filtered_funds = [f for f in mutual_funds if query in f['symbol'] or query in f['name'].upper()]
+    # Filter to only include stocks with valid yfinance symbols
+    valid_stocks = [s for s in stocks if s['symbol'].endswith('.NS') or s['symbol'].endswith('.BO')]
 
-    # Combine results
+    # Filter stocks by query
+    filtered_stocks = [s for s in valid_stocks if query in s['symbol'] or query in s['name'].upper()]
+
+    # Prepare results
     results = []
     for stock in filtered_stocks:
         results.append({
             'symbol': stock['symbol'],
             'name': stock['name'],
-            'type': 'Stock',
-            'cap': stock.get('cap', ''),
-            'sector': stock.get('sector', '')
-        })
-
-    for fund in filtered_funds:
-        results.append({
-            'symbol': fund['symbol'],
-            'name': fund['name'],
-            'type': 'Mutual Fund',
-            'category': fund.get('category', ''),
-            'aum': fund.get('aum', '')
+            'type': 'Stock'
         })
 
     return jsonify(results[:10])  # Limit to 10 results

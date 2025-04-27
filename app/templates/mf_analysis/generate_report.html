@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Mutual Funds Analysis Report - CapitalCurve{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .report-form {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-title {
+        color: #2c3e50;
+        margin-bottom: 25px;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+    }
+
+    .fund-selection {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+    }
+
+    .fund-item {
+        padding: 8px;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        transition: background-color 0.2s;
+    }
+
+    .fund-item:hover {
+        background-color: #e9ecef;
+    }
+
+    .report-info {
+        background-color: #e8f4f8;
+        border-left: 4px solid #3498db;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 0 5px 5px 0;
+    }
+
+    .section-title {
+        color: #3498db;
+        margin-top: 20px;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    .btn-generate {
+        padding: 10px 25px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .btn-generate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .time-period-selection {
+        background-color: #f1f8fe;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('mf_analysis.index') }}">Mutual Funds Analysis</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Generate Report</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3"><i class="fas fa-file-pdf me-2 text-danger"></i>Mutual Funds Analysis Report</h1>
+            <p class="lead">Generate a comprehensive analysis report with predictions for your selected mutual funds.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="report-form">
+                <h3 class="form-title text-center">Report Configuration</h3>
+
+                <div class="report-info mb-4">
+                    <h5><i class="fas fa-info-circle me-2"></i>About This Report</h5>
+                    <p>This report provides a detailed analysis of your selected mutual funds, including:</p>
+                    <ul>
+                        <li>Performance metrics and historical trends</li>
+                        <li>Risk assessment and asset allocation analysis</li>
+                        <li>Detailed explanations of all indicators for easy understanding</li>
+                        <li>Future return predictions using machine learning</li>
+                        <li>Personalized investment insights</li>
+                    </ul>
+                    <p class="mb-0"><strong>Note:</strong> The report will be generated as a downloadable PDF file.</p>
+                </div>
+
+                <form method="POST" action="{{ url_for('mf_analysis.generate_report') }}">
+                    <div class="mb-4">
+                        <label for="user_name" class="form-label">Your Name</label>
+                        <input type="text" class="form-control" id="user_name" name="user_name" placeholder="Enter your name" value="{{ current_user.username }}" required>
+                        <small class="text-muted">This will be displayed on your personalized report.</small>
+                    </div>
+
+                    <h4 class="section-title">Select Mutual Funds for Analysis</h4>
+                    <div class="mb-4 fund-selection">
+                        <div class="d-flex justify-content-between mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="selectAll">Select All</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAll">Deselect All</button>
+                        </div>
+
+                        {% for fund in funds %}
+                        <div class="fund-item">
+                            <div class="form-check">
+                                <input class="form-check-input fund-checkbox" type="checkbox" name="funds" id="fund{{ fund.scheme_code }}" value="{{ fund.scheme_code }}">
+                                <label class="form-check-label" for="fund{{ fund.scheme_code }}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>{{ fund.scheme_name }}</span>
+                                        <span class="badge {% if fund.one_year_return and fund.one_year_return > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ fund.one_year_return|default('N/A') }}%
+                                        </span>
+                                    </div>
+                                    <small class="text-muted d-block">{{ fund.category }} | NAV: ₹{{ fund.scheme_nav }}</small>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <h4 class="section-title">Select Time Period</h4>
+                    <div class="time-period-selection">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period1y" value="1y" checked>
+                            <label class="form-check-label" for="period1y">1 Year</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period3y" value="3y">
+                            <label class="form-check-label" for="period3y">3 Years</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period5y" value="5y">
+                            <label class="form-check-label" for="period5y">5 Years</label>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-generate">
+                            <i class="fas fa-file-download me-2"></i>Generate & Download Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select/Deselect all functionality
+        const selectAllBtn = document.getElementById('selectAll');
+        const deselectAllBtn = document.getElementById('deselectAll');
+        const fundCheckboxes = document.querySelectorAll('.fund-checkbox');
+
+        selectAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            fundCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+
+        deselectAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            fundCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
+
+        // Form validation
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(event) {
+            const checkedBoxes = document.querySelectorAll('.fund-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                event.preventDefault();
+                alert('Please select at least one mutual fund for the report.');
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Mutual Funds Analysis & Prediction - FinDash{% endblock %}
+{% block title %}Mutual Funds Analysis & Prediction - CapitalCurve{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -13,6 +13,9 @@
                 <div class="d-flex gap-3 mt-4">
                     <a href="{{ url_for('mf_analysis.visualization') }}" class="btn btn-primary btn-lg">
                         <i class="fas fa-chart-bar me-2"></i>Explore Visualizations
+                    </a>
+                    <a href="{{ url_for('mf_analysis.generate_report') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-file-pdf me-2"></i>Generate Report
                     </a>
                     <a href="#features" class="btn btn-outline-secondary btn-lg">
                         <i class="fas fa-info-circle me-2"></i>Learn More
@@ -35,7 +38,7 @@
         </div>
 
         <div class="row g-4">
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+            <div class="col-md-3" data-aos="fade-up" data-aos-delay="100">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body text-center p-4">
                         <div class="feature-icon bg-primary text-white rounded-circle mb-3">
@@ -50,7 +53,7 @@
                 </div>
             </div>
 
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+            <div class="col-md-3" data-aos="fade-up" data-aos-delay="200">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body text-center p-4">
                         <div class="feature-icon bg-success text-white rounded-circle mb-3">
@@ -67,7 +70,7 @@
                 </div>
             </div>
 
-            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+            <div class="col-md-3" data-aos="fade-up" data-aos-delay="300">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body text-center p-4">
                         <div class="feature-icon bg-info text-white rounded-circle mb-3">
@@ -77,6 +80,21 @@
                         <p class="card-text">Analyze fund characteristics like AUM, expense ratio, equity/debt allocation, and their impact on returns.</p>
                         <a href="{{ url_for('mf_analysis.visualization') }}#fund-analysis" class="btn btn-sm btn-outline-info mt-3">
                             <i class="fas fa-arrow-right me-1"></i> Analyze
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3" data-aos="fade-up" data-aos-delay="400">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon bg-danger text-white rounded-circle mb-3">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <h3 class="h4 mb-3">Detailed Reports</h3>
+                        <p class="card-text">Generate comprehensive PDF reports with detailed analysis, predictions, and explanations of all indicators.</p>
+                        <a href="{{ url_for('mf_analysis.generate_report') }}" class="btn btn-sm btn-outline-danger mt-3">
+                            <i class="fas fa-download me-1"></i> Generate
                         </a>
                     </div>
                 </div>
@@ -148,6 +166,9 @@
                             </a>
                             <a href="{{ url_for('mf_analysis.one_year_prediction') }}" class="btn btn-success btn-lg">
                                 <i class="fas fa-magic me-2"></i>Make Predictions
+                            </a>
+                            <a href="{{ url_for('mf_analysis.generate_report') }}" class="btn btn-danger btn-lg">
+                                <i class="fas fa-file-pdf me-2"></i>Generate Report
                             </a>
                         </div>
                     </div>

@@ -1,10 +1,10 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, send_file, flash, current_app, redirect, url_for
 import pandas as pd
 import numpy as np
 import json
 import os
 import pickle
-from flask_login import login_required
+from flask_login import login_required, current_user
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
@@ -13,6 +13,7 @@ import datetime as dt
 from io import BytesIO
 import base64
 from PIL import Image
+from app.utils.mf_api import get_mutual_fund_details, get_popular_funds
 
 mf_analysis_bp = Blueprint('mf_analysis', __name__, url_prefix='/mf-analysis')
 
@@ -659,6 +660,41 @@ def predict_five_year_returns(user_data):
 @login_required
 def index():
     return render_template('mf_analysis/index.html')
+
+@mf_analysis_bp.route('/generate-report', methods=['GET', 'POST'])
+@login_required
+def generate_report():
+    """Generate a comprehensive mutual funds analysis and prediction report"""
+    if request.method == 'POST':
+        try:
+            # Get user information from the form
+            user_name = request.form.get('user_name', current_user.username)
+            selected_funds = request.form.getlist('funds')
+            time_period = request.form.get('time_period', '1y')
+
+            # Validate inputs
+            if not selected_funds:
+                flash('Please select at least one mutual fund for the report.', 'warning')
+                return redirect(url_for('mf_analysis.generate_report'))
+
+            # Generate the report
+            from app.utils.report_generator import generate_mutual_funds_report
+            report_path = generate_mutual_funds_report(user_name, selected_funds, time_period)
+
+            # Return the report for download
+            return send_file(report_path, as_attachment=True,
+                          download_name=f"Mutual_Funds_Analysis_Report_{user_name.replace(' ', '_')}.pdf",
+                          mimetype='application/pdf')
+        except Exception as e:
+            current_app.logger.error(f"Error generating report: {str(e)}")
+            flash(f'Error generating report: {str(e)}', 'danger')
+            return redirect(url_for('mf_analysis.generate_report'))
+
+    # GET request - show the form
+    # Get list of popular mutual funds to display in the form
+    funds = get_popular_funds(limit=50)
+
+    return render_template('mf_analysis/generate_report.html', funds=funds)
 
 @mf_analysis_bp.route('/visualization')
 @login_required

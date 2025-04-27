@@ -1,6 +1,6 @@
-# FinDash - Financial Web Application
+# CapitalCurve - Financial Web Application
 
-FinDash is a comprehensive financial web application built with Flask and Plotly Dash. It provides portfolio management, stock and mutual fund tracking, portfolio optimization, SIP calculation, and an AI-powered chatbot for financial advice.
+CapitalCurve is a comprehensive financial web application built with Flask and Plotly Dash. It provides portfolio management, stock and mutual fund tracking, portfolio optimization, SIP calculation, and an AI-powered chatbot for financial advice.
 
 ## Features
 
@@ -14,8 +14,8 @@ FinDash is a comprehensive financial web application built with Flask and Plotly
 
 1. Clone the repository:
 ```
-git clone https://github.com/yourusername/findash.git
-cd findash
+git clone https://github.com/yourusername/capitalcurve.git
+cd capitalcurve
 ```
 
 2. Create a virtual environment and activate it:
@@ -48,7 +48,7 @@ python run.py
 ## Project Structure
 
 ```
-findash/
+capitalcurve/
 ├── app/
 │   ├── controllers/       # Route handlers
 │   ├── dashboards/        # Plotly Dash applications

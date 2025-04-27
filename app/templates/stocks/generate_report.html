@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Mutual Funds Analysis Report - FinDash{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .report-form {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-title {
+        color: #2c3e50;
+        margin-bottom: 25px;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+    }
+    
+    .fund-selection {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+    }
+    
+    .fund-item {
+        padding: 8px;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        transition: background-color 0.2s;
+    }
+    
+    .fund-item:hover {
+        background-color: #e9ecef;
+    }
+    
+    .report-info {
+        background-color: #e8f4f8;
+        border-left: 4px solid #3498db;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 0 5px 5px 0;
+    }
+    
+    .btn-generate {
+        background-color: #2980b9;
+        border-color: #2980b9;
+        padding: 10px 25px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .btn-generate:hover {
+        background-color: #3498db;
+        border-color: #3498db;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .section-title {
+        color: #2c3e50;
+        margin: 20px 0 15px;
+        font-weight: 600;
+    }
+    
+    .time-period-selector .form-check {
+        margin-right: 15px;
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('stocks.dashboard') }}">Stocks</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Generate Report</li>
+                </ol>
+            </nav>
+            <h1 class="mb-3"><i class="fas fa-file-pdf me-2 text-danger"></i>Mutual Funds Analysis Report</h1>
+            <p class="lead">Generate a comprehensive analysis report with predictions for your selected stocks.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="report-form">
+                <h3 class="form-title text-center">Report Configuration</h3>
+                
+                <div class="report-info mb-4">
+                    <h5><i class="fas fa-info-circle me-2"></i>About This Report</h5>
+                    <p>This report provides a detailed analysis of your selected stocks, including:</p>
+                    <ul>
+                        <li>Performance metrics and historical trends</li>
+                        <li>Technical indicators with explanations</li>
+                        <li>Risk assessment and volatility analysis</li>
+                        <li>Future price predictions using machine learning</li>
+                        <li>Investment recommendations based on analysis</li>
+                    </ul>
+                    <p class="mb-0"><strong>Note:</strong> The report will be generated as a downloadable PDF file.</p>
+                </div>
+                
+                <form method="POST" action="{{ url_for('stocks.generate_report') }}">
+                    <div class="mb-4">
+                        <label for="user_name" class="form-label">Your Name</label>
+                        <input type="text" class="form-control" id="user_name" name="user_name" placeholder="Enter your name" required>
+                        <small class="text-muted">This will be displayed on your personalized report.</small>
+                    </div>
+                    
+                    <h4 class="section-title">Select Stocks for Analysis</h4>
+                    <div class="mb-4 fund-selection">
+                        <div class="d-flex justify-content-between mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="selectAll">Select All</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAll">Deselect All</button>
+                        </div>
+                        
+                        <div class="row">
+                            {% for stock in stocks %}
+                            <div class="col-md-6">
+                                <div class="fund-item">
+                                    <div class="form-check">
+                                        <input class="form-check-input stock-checkbox" type="checkbox" name="funds" value="{{ stock.symbol }}" id="fund{{ loop.index }}" 
+                                            {% if stock in top_stocks %}checked{% endif %}>
+                                        <label class="form-check-label" for="fund{{ loop.index }}">
+                                            <strong>{{ stock.symbol }}</strong> - {{ stock.name }}
+                                            <small class="d-block text-muted">{{ stock.cap }}</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <h4 class="section-title">Time Period</h4>
+                    <div class="mb-4 time-period-selector">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period1m" value="1mo">
+                            <label class="form-check-label" for="period1m">1 Month</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period3m" value="3mo">
+                            <label class="form-check-label" for="period3m">3 Months</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period6m" value="6mo">
+                            <label class="form-check-label" for="period6m">6 Months</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period1y" value="1y" checked>
+                            <label class="form-check-label" for="period1y">1 Year</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="time_period" id="period2y" value="2y">
+                            <label class="form-check-label" for="period2y">2 Years</label>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-generate">
+                            <i class="fas fa-file-download me-2"></i>Generate & Download Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select/Deselect All functionality
+        const selectAllBtn = document.getElementById('selectAll');
+        const deselectAllBtn = document.getElementById('deselectAll');
+        const checkboxes = document.querySelectorAll('.stock-checkbox');
+        
+        selectAllBtn.addEventListener('click', function() {
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+        
+        deselectAllBtn.addEventListener('click', function() {
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
+        
+        // Form validation
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(event) {
+            const checkedBoxes = document.querySelectorAll('.stock-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                event.preventDefault();
+                alert('Please select at least one stock for the report.');
+            }
+        });
+    });
+</script>
+{% endblock %}
